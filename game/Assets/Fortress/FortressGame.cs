@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -8,6 +8,7 @@ namespace MiniFortress
     public sealed partial class FortressGame : MonoBehaviour
     {
         const float Gravity = 12, ShotStep = 0.0125f, MoveLimit = 10;
+        const float ActorHeight = 4.2f, ShoulderHeight = 2.5f;
         enum Phase { Selecting, Aim, Flight, Impact, EnemyMove, EnemyAim, Finished }
         const float EnemyMoveLimit = 4, EnemyMoveSpeed = 3;
         float enemyMoveTarget;
@@ -36,13 +37,13 @@ namespace MiniFortress
             public Platform(float l, float r, float t, float b) { left = l; right = r; top = t; bottom = b; }
         }
         readonly Platform[] terrain = {
-            new Platform(-3, 22, 13, -14), new Platform(22, 34, 3, -14),
-            new Platform(37, 50, 6, -14), new Platform(22, 64, 13, 12.3f),
-            new Platform(64, 81, 22, -14), new Platform(81, 103, 5, -14),
-            new Platform(88, 103, 13, 12),
-            new Platform(57, 60, 16, 13), new Platform(60, 64, 19, 13)
+            new Platform(-3, 18.3f, 24.7f, -14), new Platform(18.3f, 32.7f, 6.9f, -14),
+            new Platform(38.3f, 52, 8.6f, -14), new Platform(18.3f, 63, 18.4f, 17.7f),
+            new Platform(63, 81.5f, 28.5f, -14), new Platform(81.5f, 103, 6.9f, -14),
+            new Platform(92, 103, 17, 16),
+            new Platform(54, 58, 22, 18.4f), new Platform(58, 63, 24.5f, 18.4f)
         };
-        readonly Vector2[] starts = { new Vector2(9, 13), new Vector2(46, 13), new Vector2(72, 22), new Vector2(95, 13), new Vector2(85, 5) };
+        readonly Vector2[] starts = { new Vector2(9, 24.7f), new Vector2(46, 18.4f), new Vector2(72, 28.5f), new Vector2(97, 17), new Vector2(85, 6.9f) };
         readonly List<Fighter> fighters = new List<Fighter>();
         readonly List<Object> ownedAssets = new List<Object>();
         readonly List<Transform> guide = new List<Transform>();
@@ -78,13 +79,13 @@ namespace MiniFortress
             displayCamera.clearFlags = CameraClearFlags.SolidColor;
             displayCamera.backgroundColor = Color.black;
             displayCamera.cullingMask = 0;
-            worldCamera = new GameObject("Pixel battlefield camera").AddComponent<Camera>();
+            worldCamera = new GameObject("Illustrated battlefield camera").AddComponent<Camera>();
             worldCamera.transform.SetParent(transform);
             worldCamera.transform.position = new Vector3(50, 18, -30);
             worldCamera.orthographic = true; worldCamera.orthographicSize = 30; worldCamera.aspect = 16f / 9;
             worldCamera.clearFlags = CameraClearFlags.SolidColor;
             worldCamera.backgroundColor = new Color(0.065f, 0.105f, 0.18f);
-            pixelFrame = new RenderTexture(800, 450, 16) { filterMode = FilterMode.Point, antiAliasing = 1 };
+            pixelFrame = new RenderTexture(1920, 1080, 24) { filterMode = FilterMode.Bilinear, antiAliasing = 1 };
             pixelFrame.Create(); worldCamera.targetTexture = pixelFrame;
             uiFont = Font.CreateDynamicFontFromOSFont(new[] { "Malgun Gothic", "Arial" }, 20);
             ownedAssets.Add(uiFont);
@@ -98,7 +99,9 @@ namespace MiniFortress
             arrowProjectile = arrow;
             InitializeClasses();
             burst = Shape("Impact flash", Vector2.zero, Vector2.one, new Color(1, 0.6f, 0.2f, 0.7f), 31);
+            burst.GetComponent<SpriteRenderer>().sprite = softCircle;
             for (int i = 0; i < 28; i++) guide.Add(Shape("Aim dot", Vector2.zero, Vector2.one * 0.13f, new Color(1, 0.78f, 0.43f), 22));
+            foreach (Transform dot in guide) dot.GetComponent<SpriteRenderer>().sprite = softCircle;
             Restart(); OpenSelection();
         }
         int Facing(int index) => index == 0 ? playerFacing : fighters[0].feet.x < fighters[index].feet.x ? -1 : 1;
@@ -107,7 +110,7 @@ namespace MiniFortress
             float r = degrees * Mathf.Deg2Rad;
             return new Vector2(Facing(index) * Mathf.Cos(r), Mathf.Sin(r));
         }
-        Vector2 Origin(int index, float degrees) => fighters[index].feet + Vector2.up * (1.9f * fighters[index].root.localScale.x) + Direction(index, degrees) * (1.6f * fighters[index].root.localScale.x);
+        Vector2 Origin(int index, float degrees) => fighters[index].feet + Vector2.up * (ShoulderHeight * fighters[index].root.localScale.x) + Direction(index, degrees) * (1.6f * fighters[index].root.localScale.x);
         void Update()
         {
             if (fighters.Count == 0) return;
@@ -171,7 +174,7 @@ namespace MiniFortress
             float wanted = Mathf.Clamp(player.feet.x + Mathf.Clamp(distance, -moveRemaining, moveRemaining), 0, 101);
             foreach (Platform p in terrain)
             {
-                if (player.feet.y >= p.top - 0.05f || player.feet.y + 3 <= p.bottom) continue;
+                if (player.feet.y >= p.top - 0.05f || player.feet.y + ActorHeight <= p.bottom) continue;
                 if (wanted + 0.55f > p.left && wanted - 0.55f < p.right)
                 {
                     if (player.feet.x <= p.left) wanted = Mathf.Min(wanted, p.left - 0.55f);
@@ -213,7 +216,7 @@ namespace MiniFortress
             {
                 if (player.feet.x < p.left || player.feet.x > p.right) continue;
                 if (fallSpeed <= 0 && oldY >= p.top - 0.06f && nextY <= p.top) landing = Mathf.Max(landing, p.top);
-                if (fallSpeed > 0 && oldY + 3 <= p.bottom && nextY + 3 >= p.bottom) { nextY = p.bottom - 3; fallSpeed = 0; }
+                if (fallSpeed > 0 && oldY + ActorHeight <= p.bottom && nextY + ActorHeight >= p.bottom) { nextY = p.bottom - ActorHeight; fallSpeed = 0; }
             }
             if (!float.IsNegativeInfinity(landing)) { nextY = landing; fallSpeed = 0; grounded = true; }
             player.feet.y = nextY; if (grounded) safePosition = player.feet;
@@ -228,7 +231,7 @@ namespace MiniFortress
             for (int i = 0; i < fighters.Count; i++)
             {
                 Fighter f = fighters[i]; f.root.gameObject.SetActive(f.hp > 0); f.root.position = f.feet;
-                int facing = Facing(i); f.body.flipX = facing < 0; f.weapon.localPosition = Vector3.up * 1.9f;
+                int facing = Facing(i); f.body.flipX = facing < 0; f.weapon.localPosition = Vector3.up * ShoulderHeight;
                 Vector2 d = Direction(i, f.angle);
                 f.weapon.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
                 f.weapon.localScale = new Vector3(1, facing, 1);
@@ -257,7 +260,7 @@ namespace MiniFortress
             {
                 if (i == owner || fighters[i].hp <= 0 || (owner > 0 && i > 0)) continue;
                 Fighter f = fighters[i]; float scale = f.root.localScale.x;
-                if (Mathf.Abs(p.x - f.feet.x) <= 0.7f * scale && p.y >= f.feet.y && p.y <= f.feet.y + 3.25f * scale) return i;
+                if (Mathf.Abs(p.x - f.feet.x) <= 0.7f * scale && p.y >= f.feet.y && p.y <= f.feet.y + ActorHeight * scale) return i;
             }
             return -1;
         }
@@ -338,7 +341,7 @@ namespace MiniFortress
         {
             Fighter enemy = fighters[index];
             float halfWidth = 0.7f * enemy.root.localScale.x;
-            float height = 3.25f * enemy.root.localScale.x;
+            float height = ActorHeight * enemy.root.localScale.x;
             if (x - halfWidth < 0 || x + halfWidth > 102) return false;
             // Both feet and the centre need support; never cross a gap or walk off a ledge.
             for (int sample = -1; sample <= 1; sample++)
@@ -357,7 +360,7 @@ namespace MiniFortress
                 if (i == index || fighters[i].hp <= 0) continue;
                 Fighter other = fighters[i];
                 if (Mathf.Abs(x - other.feet.x) < halfWidth + 0.7f * other.root.localScale.x + 0.2f &&
-                    enemy.feet.y < other.feet.y + 3.25f * other.root.localScale.x && enemy.feet.y + height > other.feet.y)
+                    enemy.feet.y < other.feet.y + ActorHeight * other.root.localScale.x && enemy.feet.y + height > other.feet.y)
                     return false;
             }
             return true;
@@ -380,7 +383,7 @@ namespace MiniFortress
             Vector2 centre = new Vector2(x, enemy.feet.y + 1.6f * enemy.root.localScale.x);
             float risk = hasPlayerImpact ? 4 * Mathf.Clamp01(1 - Vector2.Distance(centre, lastPlayerImpact) / 7) : 0;
             // Terrain that blocks a straight shot offers some cover, but is not treated as immunity to arcs.
-            Vector2 playerCentre = fighters[0].feet + Vector2.up * 1.9f;
+            Vector2 playerCentre = fighters[0].feet + Vector2.up * ShoulderHeight;
             bool cover = false;
             for (int s = 1; s < 40; s++)
                 if (HitsTerrain(Vector2.Lerp(playerCentre, centre, s / 40f))) { cover = true; break; }
@@ -465,7 +468,7 @@ namespace MiniFortress
         {
             float best = float.MaxValue; bestAngle = 48; bestPower = 26;
             Vector2 target = fighters[0].feet;
-            float targetHeight = 3.25f * fighters[0].root.localScale.x;
+            float targetHeight = ActorHeight * fighters[0].root.localScale.x;
             for (float angle = 15; angle <= 78; angle += 3)
                 for (float power = 10; power <= 38; power += 0.75f)
                 {
