@@ -2,6 +2,8 @@
 
 ![alt text](image-1.png)
 
+![alt text](image.png)
+
 
 게임 개발 아이디어 v1
 
