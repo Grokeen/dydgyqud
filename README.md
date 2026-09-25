@@ -3,7 +3,7 @@
 ![alt text](image-1.png)
 
 ![alt text](image.png)
-
+- [포트리스 설명](/game/FORTRESS_README.md)
 
 게임 개발 아이디어 v1
 
