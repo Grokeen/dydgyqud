@@ -8,7 +8,14 @@ namespace MiniFortress
     public sealed partial class FortressGame : MonoBehaviour
     {
         const float Gravity = 12, ShotStep = 0.0125f, MoveLimit = 10;
-        enum Phase { Aim, Flight, Impact, EnemyAim, Finished }
+        enum Phase { Selecting, Aim, Flight, Impact, EnemyAim, Finished }
+        enum PlayerClass { Archer, Spearman }
+        PlayerClass playerClass, highlightedClass;
+        readonly Sprite[] classSprites = new Sprite[2];
+        readonly Texture2D[] classPortraits = new Texture2D[2];
+        Transform bowWeapon, spearWeapon, bowLoaded, spearLoaded, arrowProjectile, spearProjectile;
+        bool IsSpearman => playerClass == PlayerClass.Spearman;
+        string AttackName => IsSpearman ? "창 투척" : "화살 발사";
         sealed class Fighter
         {
             public Vector2 feet;
@@ -43,6 +50,7 @@ namespace MiniFortress
         Vector2 shotPosition, shotVelocity, safePosition;
         float accumulator, shotAge, timer, moveRemaining, fallSpeed, mouseMove;
         bool grounded = true;
+        bool playerHasAttacked;
         int current, round, playerFacing = 1;
         string message;
         readonly Color gold = new Color(0.77f, 0.64f, 0.39f);
@@ -82,9 +90,11 @@ namespace MiniFortress
             AddFighter("절벽 사수", starts[3], 40, new Color(0.62f, 0.56f, 0.31f), false);
             AddFighter("하단 경비병", starts[4], 40, new Color(0.45f, 0.62f, 0.29f), false);
             arrow = BuildArrow(transform, "Flying arrow", 30);
+            arrowProjectile = arrow;
+            InitializeClasses();
             burst = Shape("Impact flash", Vector2.zero, Vector2.one, new Color(1, 0.6f, 0.2f, 0.7f), 31);
             for (int i = 0; i < 28; i++) guide.Add(Shape("Aim dot", Vector2.zero, Vector2.one * 0.13f, new Color(1, 0.78f, 0.43f), 22));
-            Restart();
+            Restart(); OpenSelection();
         }
         int Facing(int index) => index == 0 ? playerFacing : fighters[0].feet.x < fighters[index].feet.x ? -1 : 1;
         Vector2 Direction(int index, float degrees)
@@ -98,6 +108,17 @@ namespace MiniFortress
             if (fighters.Count == 0) return;
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
             Keyboard keys = Keyboard.current;
+            if (phase == Phase.Selecting)
+            {
+                if (keys != null)
+                {
+                    if (keys.digit1Key.wasPressedThisFrame || keys.leftArrowKey.wasPressedThisFrame) highlightedClass = PlayerClass.Archer;
+                    if (keys.digit2Key.wasPressedThisFrame || keys.rightArrowKey.wasPressedThisFrame) highlightedClass = PlayerClass.Spearman;
+                    if (keys.enterKey.wasPressedThisFrame) BeginBattle();
+                }
+                return;
+            }
+            if (keys != null && keys.escapeKey.wasPressedThisFrame) { OpenSelection(); return; }
             if (keys != null && keys.rKey.wasPressedThisFrame) { Restart(); return; }
             if (phase == Phase.Aim)
             {
@@ -128,8 +149,10 @@ namespace MiniFortress
             }
             else if (phase == Phase.Impact)
             {
-                timer -= dt; burst.localScale = Vector3.one * Mathf.Lerp(6, 0.4f, Mathf.Clamp01(timer / 0.55f));
-                if (timer <= 0) NextTurn();
+                timer -= dt;
+                float diameter = current == 0 && IsSpearman ? 3 : 6;
+                burst.localScale = Vector3.one * Mathf.Lerp(diameter, 0.4f, Mathf.Clamp01(timer / 0.55f));
+                if (timer <= 0) ResolveShot();
             }
             else if (phase == Phase.EnemyAim) { timer -= dt; if (timer <= 0) Fire(current); }
             UpdatePoses();
@@ -203,10 +226,10 @@ namespace MiniFortress
                 Vector2 d = Direction(i, f.angle);
                 f.weapon.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
                 f.weapon.localScale = new Vector3(1, facing, 1);
-                f.loadedArrow.gameObject.SetActive(!((phase == Phase.Flight || phase == Phase.Impact) && current == i));
+                f.loadedArrow.gameObject.SetActive(!(i == 0 && playerHasAttacked) && !((phase == Phase.Flight || phase == Phase.Impact) && current == i));
             }
             Vector2 point = Origin(0, fighters[0].angle), speed = Direction(0, fighters[0].angle) * fighters[0].power;
-            bool visible = phase == Phase.Aim;
+            bool visible = phase == Phase.Aim && !playerHasAttacked;
             foreach (Transform dot in guide)
             {
                 for (int j = 0; j < 6; j++) { Integrate(ref point, ref speed); if (HitsTerrain(point) || HitFighter(point, 0) >= 0) visible = false; }
@@ -234,12 +257,20 @@ namespace MiniFortress
         }
         void Fire(int index)
         {
-            if (phase != Phase.Aim && phase != Phase.EnemyAim) return;
+            if (index == 0)
+            {
+                if (phase != Phase.Aim || current != 0 || !grounded || playerHasAttacked) return;
+                playerHasAttacked = true;
+            }
+            else if (phase != Phase.EnemyAim || index != current) return;
+            arrowProjectile.gameObject.SetActive(false); spearProjectile.gameObject.SetActive(false);
+            arrow = index == 0 && IsSpearman ? spearProjectile : arrowProjectile;
             current = index; shotPosition = Origin(index, fighters[index].angle);
             shotVelocity = Direction(index, fighters[index].angle) * fighters[index].power;
             shotAge = accumulator = 0; arrow.position = shotPosition;
             arrow.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(shotVelocity.y, shotVelocity.x) * Mathf.Rad2Deg);
-            arrow.gameObject.SetActive(true); phase = Phase.Flight; message = fighters[index].name + "의 화살!";
+            arrow.gameObject.SetActive(true); phase = Phase.Flight;
+            message = fighters[index].name + (index == 0 && IsSpearman ? "의 창 투척!" : "의 화살!");
         }
         void Impact(int directHit, bool miss = false)
         {
@@ -251,8 +282,10 @@ namespace MiniFortress
                     if (fighters[i].hp <= 0 || (current > 0 && i > 0)) continue;
                     Fighter f = fighters[i];
                     Vector2 nearest = new Vector2(f.feet.x, Mathf.Clamp(shotPosition.y, f.feet.y + 0.2f, f.feet.y + 2.9f * f.root.localScale.x));
-                    float distance = Vector2.Distance(shotPosition, nearest); int maximum = current == 0 ? 32 : 10;
-                    int damage = directHit == i ? maximum : Mathf.RoundToInt(maximum * Mathf.Clamp01(1 - distance / 3.5f));
+                    float distance = Vector2.Distance(shotPosition, nearest);
+                    int maximum = current == 0 ? (IsSpearman ? 40 : 32) : 10;
+                    float radius = current == 0 && IsSpearman ? 1.5f : 3.5f;
+                    int damage = directHit == i ? maximum : Mathf.RoundToInt(maximum * Mathf.Clamp01(1 - distance / radius));
                     f.hp = Mathf.Max(0, f.hp - damage); total += damage;
                 }
             message = total > 0 ? "명중! 피해 " + total : "빗나갔습니다. 각도와 위력을 조절하세요.";
@@ -262,6 +295,25 @@ namespace MiniFortress
         {
             int count = 0; for (int i = 1; i < fighters.Count; i++) if (fighters[i].hp > 0) count++; return count;
         }
+        void ResolveShot()
+        {
+            burst.gameObject.SetActive(false);
+            if (fighters[0].hp <= 0) { Finish(false); return; }
+            if (EnemiesAlive() == 0) { Finish(true); return; }
+            if (current == 0)
+            {
+                phase = Phase.Aim;
+                message += " · 남은 이동 후 '턴 넘기기'를 누르세요.";
+            }
+            else NextTurn();
+        }
+        void EndPlayerTurn()
+        {
+            // A shot, landing, or exhausted movement never ends the player's turn automatically.
+            if (phase != Phase.Aim || current != 0 || !grounded) return;
+            mouseMove = 0;
+            NextTurn();
+        }
         void NextTurn()
         {
             burst.gameObject.SetActive(false);
@@ -270,8 +322,8 @@ namespace MiniFortress
             do { current++; } while (current < fighters.Count && fighters[current].hp <= 0);
             if (current >= fighters.Count)
             {
-                current = 0; round++; phase = Phase.Aim; moveRemaining = MoveLimit;
-                message = "내 턴 · 이동하고 조준한 뒤 화살을 발사하세요.";
+                current = 0; round++; phase = Phase.Aim; moveRemaining = MoveLimit; playerHasAttacked = false;
+                message = "내 턴 · 이동하고 조준한 뒤 " + AttackName + "!";
             }
             else { phase = Phase.EnemyAim; timer = 0.85f; PlanEnemy(current); message = fighters[current].name + " 조준 중…"; }
         }
@@ -296,13 +348,16 @@ namespace MiniFortress
             f.angle = Mathf.Clamp(f.angle + Random.Range(-2.8f, 2.8f), 10, 80);
             f.power = Mathf.Clamp(f.power + Random.Range(-0.8f, 0.8f), 10, 38);
         }
-        void Finish(bool won) { phase = Phase.Finished; message = won ? "승리 · 모든 적을 처치했습니다!" : "패배 · 궁수가 쓰러졌습니다."; }
+        void Finish(bool won) { phase = Phase.Finished; message = won ? "승리 · 모든 적을 처치했습니다!" : "패배 · " + fighters[0].name + "가 쓰러졌습니다."; }
         void Restart()
         {
             for (int i = 0; i < fighters.Count; i++) { fighters[i].hp = fighters[i].maxHp; fighters[i].feet = starts[i]; fighters[i].angle = 48; fighters[i].power = 26; }
             current = 0; round = 1; playerFacing = 1; moveRemaining = MoveLimit; grounded = true; fallSpeed = mouseMove = 0;
-            safePosition = starts[0]; phase = Phase.Aim; arrow.gameObject.SetActive(false); burst.gameObject.SetActive(false);
-            message = "궁수 한 명으로 성채를 돌파하세요 · A/D 이동 · W 점프"; UpdatePoses();
+            playerHasAttacked = false;
+            safePosition = starts[0]; phase = Phase.Aim;
+            arrowProjectile.gameObject.SetActive(false); spearProjectile.gameObject.SetActive(false); burst.gameObject.SetActive(false);
+            accumulator = shotAge = timer = 0;
+            message = fighters[0].name + " 한 명으로 성채를 돌파하세요 · A/D 이동 · W 점프"; UpdatePoses();
         }
         void OnDestroy()
         {

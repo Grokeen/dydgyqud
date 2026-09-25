@@ -80,7 +80,7 @@ namespace MiniFortress
             Shape("Crimson banner", new Vector2(x + 1, y + 0.5f), new Vector2(2, 4), new Color(0.35f, 0.12f, 0.16f), 4);
             Shape("Banner emblem", new Vector2(x + 1, y + 0.7f), new Vector2(0.3f, 1.8f), gold, 5);
         }
-        Sprite CharacterSprite(Color cloth, bool enemy)
+        Sprite CharacterSprite(Color cloth, bool enemy, bool helmet = false)
         {
             string[] pixels = {
                 "......HHHH......", ".....HHHHHH.....", "....HHHHHHHH....", "...HHHHHHHHHH...",
@@ -97,7 +97,7 @@ namespace MiniFortress
                 for (int x = 0; x < 16; x++)
                 {
                     char c = pixels[y][x]; Color color = Color.clear;
-                    if (c == 'H') color = cloth * 0.7f;
+                    if (c == 'H') color = helmet ? new Color(0.66f, 0.72f, 0.77f) : cloth * 0.7f;
                     if (c == 'C') color = cloth;
                     if (c == 'S') color = enemy ? new Color(0.59f, 0.64f, 0.37f) : new Color(0.95f, 0.72f, 0.49f);
                     if (c == 'K') color = Color.black;
@@ -132,6 +132,78 @@ namespace MiniFortress
             Line(f.weapon, "String", new Vector2(0.25f, 0), new Vector2(0.9f, 0.85f), 0.045f, pale, 14);
             f.loadedArrow = BuildArrow(f.weapon, "Ready arrow", 16); f.loadedArrow.localPosition = Vector3.right * 1.6f;
             fighters.Add(f);
+        }
+        void InitializeClasses()
+        {
+            Fighter player = fighters[0];
+            classSprites[0] = player.body.sprite;
+            classSprites[1] = CharacterSprite(new Color(0.77f, 0.4f, 0.22f), false, true);
+            for (int i = 0; i < 2; i++) classPortraits[i] = BuildClassPortrait(classSprites[i], i == 1);
+            bowWeapon = player.weapon; bowLoaded = player.loadedArrow;
+            spearWeapon = new GameObject("Spear throwing arm").transform;
+            spearWeapon.SetParent(player.root, false);
+            Line(spearWeapon, "Throwing arm", new Vector2(-0.1f, -0.25f), new Vector2(0.65f, 0), 0.23f, new Color(0.95f, 0.72f, 0.49f), 13);
+            spearLoaded = BuildSpear(spearWeapon, "Held spear", 16);
+            spearLoaded.localPosition = Vector3.right * 1.6f;
+            spearWeapon.gameObject.SetActive(false);
+            spearProjectile = BuildSpear(transform, "Thrown spear", 30);
+            spearProjectile.gameObject.SetActive(false);
+        }
+        Texture2D BuildClassPortrait(Sprite body, bool spear)
+        {
+            var texture = new Texture2D(32, 32, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            var pixels = new Color[32 * 32];
+            Color[] source = body.texture.GetPixels();
+            for (int y = 0; y < 26; y++)
+                for (int x = 0; x < 16; x++) pixels[(y + 2) * 32 + x + 4] = source[y * 16 + x];
+            if (spear)
+            {
+                for (int y = 1; y < 27; y++) pixels[y * 32 + 25] = gold;
+                for (int y = 25; y < 31; y++)
+                    for (int x = 25 - (30 - y) / 2; x <= 25 + (30 - y) / 2; x++) pixels[y * 32 + x] = pale;
+            }
+            else
+            {
+                for (int y = 7; y <= 25; y++)
+                {
+                    int x = 23 + Mathf.RoundToInt(4 * Mathf.Sin((y - 7) / 18f * Mathf.PI));
+                    pixels[y * 32 + x] = gold;
+                    pixels[y * 32 + 23] = pale;
+                }
+                for (int x = 17; x < 31; x++) pixels[16 * 32 + x] = gold;
+                pixels[17 * 32 + 29] = pixels[15 * 32 + 29] = pale;
+            }
+            texture.SetPixels(pixels); texture.Apply(); ownedAssets.Add(texture); return texture;
+        }
+        Transform BuildSpear(Transform parent, string name, int order)
+        {
+            Transform root = new GameObject(name).transform; root.SetParent(parent, false);
+            Line(root, "Long wooden shaft", new Vector2(-2.5f, 0), new Vector2(-0.35f, 0), 0.13f, gold, order);
+            Line(root, "Steel spearhead", new Vector2(-0.5f, 0), Vector2.zero, 0.19f, pale, order);
+            Line(root, "Blade upper", new Vector2(-0.45f, 0.23f), Vector2.zero, 0.12f, pale, order);
+            Line(root, "Blade lower", new Vector2(-0.45f, -0.23f), Vector2.zero, 0.12f, pale, order);
+            Part(root, "Red binding", new Vector2(-0.65f, 0), new Vector2(0.28f, 0.19f), new Color(0.8f, 0.22f, 0.17f), order + 1);
+            return root;
+        }
+        void OpenSelection()
+        {
+            phase = Phase.Selecting; highlightedClass = playerClass; mouseMove = 0;
+            arrowProjectile.gameObject.SetActive(false); spearProjectile.gameObject.SetActive(false); burst.gameObject.SetActive(false);
+            foreach (Fighter fighter in fighters) fighter.root.gameObject.SetActive(false);
+            foreach (Transform dot in guide) dot.gameObject.SetActive(false);
+        }
+        void BeginBattle()
+        {
+            if (phase != Phase.Selecting) return;
+            playerClass = highlightedClass;
+            Fighter player = fighters[0];
+            player.name = IsSpearman ? "창병" : "궁수";
+            player.maxHp = IsSpearman ? 140 : 120;
+            player.body.sprite = classSprites[(int)playerClass];
+            bowWeapon.gameObject.SetActive(!IsSpearman); spearWeapon.gameObject.SetActive(IsSpearman);
+            player.weapon = IsSpearman ? spearWeapon : bowWeapon;
+            player.loadedArrow = IsSpearman ? spearLoaded : bowLoaded;
+            Restart();
         }
         Transform BuildArrow(Transform parent, string name, int order)
         {
