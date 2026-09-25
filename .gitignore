@@ -1,0 +1,29 @@
+# Local compilation checks
+/.verification/
+
+# Unity regenerates these directories locally.
+/game/[Ll]ibrary/
+/game/[Tt]emp/
+/game/[Oo]bj/
+/game/[Ll]ogs/
+/game/[Uu]ser[Ss]ettings/
+/game/[Bb]uild/
+/game/[Bb]uilds/
+/game/[Mm]emoryCaptures/
+/game/[Rr]ecordings/
+
+# Generated IDE files
+/game/.vs/
+/game/.idea/
+/game/*.csproj
+/game/*.sln
+/game/*.slnx
+/game/*.suo
+/game/*.user
+/game/*.userprefs
+/game/*.pidb
+/game/*.booproj
+
+# OS files
+.DS_Store
+Thumbs.db
