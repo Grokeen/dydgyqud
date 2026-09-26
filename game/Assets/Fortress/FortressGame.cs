@@ -50,7 +50,6 @@ namespace MiniFortress
         readonly Vector2[] starts = { new Vector2(9, 24.7f), new Vector2(46, 18.4f), new Vector2(72, 28.5f), new Vector2(97, 17), new Vector2(85, 6.9f) };
         readonly List<Fighter> fighters = new List<Fighter>();
         readonly List<Object> ownedAssets = new List<Object>();
-        readonly List<Transform> guide = new List<Transform>();
         Camera worldCamera;
         RenderTexture pixelFrame;
         Sprite square;
@@ -104,8 +103,7 @@ namespace MiniFortress
             InitializeClasses();
             burst = Shape("Impact flash", Vector2.zero, Vector2.one, new Color(1, 0.6f, 0.2f, 0.7f), 31);
             burst.GetComponent<SpriteRenderer>().sprite = softCircle;
-            for (int i = 0; i < 28; i++) guide.Add(Shape("Aim dot", Vector2.zero, Vector2.one * 0.13f, new Color(1, 0.78f, 0.43f), 22));
-            foreach (Transform dot in guide) dot.GetComponent<SpriteRenderer>().sprite = softCircle;
+            BuildTrajectoryEffects();
             Restart(); OpenSelection();
         }
         int Facing(int index) => index == 0 ? playerFacing : fighters[0].feet.x < fighters[index].feet.x ? -1 : 1;
@@ -158,10 +156,11 @@ namespace MiniFortress
                 {
                     accumulator -= ShotStep; Integrate(ref shotPosition, ref shotVelocity); shotAge += ShotStep;
                     arrow.position = shotPosition;
+                    RecordShotTrail(shotPosition);
                     arrow.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(shotVelocity.y, shotVelocity.x) * Mathf.Rad2Deg);
                     int hit = HitFighter(shotPosition, current);
                     if (hit >= 0 || HitsTerrain(shotPosition)) Impact(hit);
-                    else if (shotPosition.x < -6 || shotPosition.x > 106 || shotPosition.y < -13 || shotAge > 10) Impact(-1, true);
+                    else if (ShotExpired(shotPosition, shotAge)) Impact(-1, true);
                 }
             }
             else if (phase == Phase.Impact)
@@ -174,6 +173,7 @@ namespace MiniFortress
             else if (phase == Phase.EnemyMove) UpdateEnemyMovement(dt);
             else if (phase == Phase.EnemyAim) { timer -= dt; if (timer <= 0) Fire(current); }
             UpdatePoses(dt);
+            UpdateShotTrail(Time.deltaTime);
         }
         void MovePlayer(float distance)
         {
@@ -195,12 +195,8 @@ namespace MiniFortress
         void LateUpdate()
         {
             if (worldCamera == null) return;
-            // Keep high-arcing shots visible while retaining the complete battlefield.
-            float top = phase == Phase.Flight ? Mathf.Max(48, shotPosition.y + 5) : 48;
-            float size = (top + 12) * 0.5f;
-            float blend = 1 - Mathf.Exp(-6 * Time.deltaTime);
-            worldCamera.orthographicSize = Mathf.Lerp(worldCamera.orthographicSize, size, blend);
-            worldCamera.transform.position = Vector3.Lerp(worldCamera.transform.position, new Vector3(50, top - size, -30), blend);
+            FrameTrajectoryCamera(1 - Mathf.Exp(-6 * Time.deltaTime));
+            AnimateTrajectoryEffects(Time.time);
         }
         void Jump()
         {
@@ -249,13 +245,7 @@ namespace MiniFortress
                 f.aimPivot.localRotation = Quaternion.Euler(0, 0, f.angle);
                 f.loadedArrow.gameObject.SetActive(!(i == 0 && playerHasAttacked && phase != Phase.Attack) && !((phase == Phase.Flight || phase == Phase.Impact) && current == i));
             }
-            Vector2 point = Origin(0, fighters[0].angle), speed = Direction(0, fighters[0].angle) * fighters[0].power;
-            bool visible = phase == Phase.Aim && !playerHasAttacked;
-            foreach (Transform dot in guide)
-            {
-                for (int j = 0; j < 6; j++) { Integrate(ref point, ref speed); if (HitsTerrain(point) || HitFighter(point, 0) >= 0) visible = false; }
-                dot.gameObject.SetActive(visible); dot.position = point;
-            }
+            UpdateTrajectoryPreview();
         }
         static void Integrate(ref Vector2 p, ref Vector2 v)
         {
@@ -300,10 +290,12 @@ namespace MiniFortress
             shotAge = accumulator = 0; arrow.position = shotPosition;
             arrow.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(shotVelocity.y, shotVelocity.x) * Mathf.Rad2Deg);
             arrow.gameObject.SetActive(true); phase = Phase.Flight;
+            BeginShotTrail();
             message = fighters[index].name + (index == 0 && IsSpearman ? "의 창 투척!" : "의 화살!");
         }
         void Impact(int directHit, bool miss = false)
         {
+            StopShotTrail();
             if (current == 0 && !miss) { lastPlayerImpact = shotPosition; hasPlayerImpact = true; }
             arrow.gameObject.SetActive(false); burst.position = shotPosition;
             burst.localScale = Vector3.one * 0.4f; burst.gameObject.SetActive(!miss); int total = 0;
@@ -513,6 +505,7 @@ namespace MiniFortress
         void Finish(bool won) { phase = Phase.Finished; message = won ? "승리 · 모든 적을 처치했습니다!" : "패배 · " + fighters[0].name + "가 쓰러졌습니다."; }
         void Restart()
         {
+            ClearTrajectoryEffects();
             for (int i = 0; i < fighters.Count; i++) { fighters[i].hp = fighters[i].maxHp; fighters[i].feet = starts[i]; fighters[i].angle = 48; fighters[i].power = 26; }
             current = 0; round = 1; playerFacing = 1; moveRemaining = MoveLimit; grounded = true; fallSpeed = mouseMove = 0;
             playerHasAttacked = false;

@@ -116,7 +116,7 @@ namespace MiniFortress
             phase = Phase.Selecting; highlightedClass = playerClass; mouseMove = 0;
             arrowProjectile.gameObject.SetActive(false); spearProjectile.gameObject.SetActive(false); burst.gameObject.SetActive(false);
             foreach (Fighter fighter in fighters) fighter.root.gameObject.SetActive(false);
-            foreach (Transform dot in guide) dot.gameObject.SetActive(false);
+            ClearTrajectoryEffects();
         }
         void BeginBattle()
         {
