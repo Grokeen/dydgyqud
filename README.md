@@ -9,6 +9,11 @@
 ![alt text](image-2.png)
 - 그래픽 개선
 
+![alt text](image-3.png)
+- 애니메이션 개선
+- 카드 추가
+
+
 
 ## 1. 게임 개발 아이디어 v1
 
