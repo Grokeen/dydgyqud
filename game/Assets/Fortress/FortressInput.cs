@@ -35,6 +35,19 @@ namespace MiniFortress
         public bool Confirm => confirm?.WasPressedThisFrame() ?? false;
         public bool EndTurn => endTurn?.WasPressedThisFrame() ?? false;
         public int SelectionDelta => select != null && select.WasPressedThisFrame() ? (int)Mathf.Sign(select.ReadValue<float>()) : 0;
+        static readonly Key[] top = { Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5 };
+        static readonly Key[] pad = { Key.Numpad1, Key.Numpad2, Key.Numpad3, Key.Numpad4, Key.Numpad5 };
+        // Hand slots 1-5; read only during battle, so they do not clash with class selection keys.
+        public int CardHotkey
+        {
+            get
+            {
+                var keyboard = Keyboard.current; if (keyboard == null) return -1;
+                for (int i = 0; i < top.Length; i++)
+                    if (keyboard[top[i]].wasPressedThisFrame || keyboard[pad[i]].wasPressedThisFrame) return i;
+                return -1;
+            }
+        }
         public int DirectSelection => (first?.WasPressedThisFrame() ?? false) ? 0 : (second?.WasPressedThisFrame() ?? false) ? 1 : -1;
     }
 }

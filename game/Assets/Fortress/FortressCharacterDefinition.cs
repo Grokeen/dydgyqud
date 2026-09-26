@@ -23,6 +23,9 @@ namespace MiniFortress
         [Min(0.01f)] public float halfWidth = .7f;
         [Min(0)] public float shoulderHeight = 2.5f;
         [Min(0)] public float muzzleDistance = 1.6f;
+        [Tooltip("비워 두면 무기별 기본 덱을 사용합니다.")]
+        public FortressCardEntry[] deck;
         public string AttackName => weapon == FortressWeapon.Spear ? "창 투척" : "화살 발사";
+        public FortressCardEntry[] Deck => deck != null && deck.Length > 0 ? deck : FortressCardEntry.DefaultDeck(weapon);
     }
 }

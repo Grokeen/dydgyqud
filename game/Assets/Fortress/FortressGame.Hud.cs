@@ -41,6 +41,18 @@ namespace MiniFortress
             return new ActorInfo { name = f.name, hp = f.hp, maxHp = f.maxHp, portrait = f.definition.portrait,
                 head = f.feet + Vector2.up * (Height(f) + .45f) };
         }
+        public int CardEnergy => energy;
+        public int MaxCardEnergy => arena.rules.cardEnergy;
+        public int Block => block;
+        public int HandCount => hand.Count;
+        public int DrawPileCount => drawPile.Count;
+        public int DiscardPileCount => discardPile.Count;
+        public string PendingAttackBuffs => PendingBuffText();
+        public string CardTitle(int index) => hand[index].title;
+        public string CardDescription(int index) => hand[index].Description;
+        public int CardCost(int index) => hand[index].cost;
+        public bool CanPlayCard(int index) => CanPlay(index);
+        public void RequestPlayCard(int index) { if (ready) PlayCard(index); }
         public void SetAngle(float value)
         { if (phase == Phase.Aim && !playerHasAttacked) fighters[0].angle = Mathf.Clamp(value, Rules.angleLimits.x, Rules.angleLimits.y); }
         public void SetPower(float value)

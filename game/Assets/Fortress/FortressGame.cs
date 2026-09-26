@@ -125,6 +125,7 @@ namespace MiniFortress
                     SetAngle(player.angle + input.Angle * arena.rules.angleSpeed * dt);
                     SetPower(player.power + input.Power * arena.rules.powerSpeed * dt);
                 }
+                if (input.CardHotkey >= 0) PlayCard(input.CardHotkey);
                 if (input.Jump) Jump();
                 if (input.Drop) DropFromBridge();
                 MovePlayer(Mathf.Clamp(mouseMove + input.Move, -1, 1) * player.definition.movementSpeed * dt);
@@ -260,6 +261,7 @@ namespace MiniFortress
             {
                 if (phase != Phase.Aim || current != 0 || !grounded || playerHasAttacked) return;
                 playerHasAttacked = true;
+                ConsumeAttackBuffs();
             }
             else if (phase != Phase.EnemyAim || index != current) return;
             current = index;
@@ -273,8 +275,10 @@ namespace MiniFortress
             int index = current;
             arrow.GetComponent<SpriteRenderer>().sprite = fighters[index].definition.projectile;
             arrow.localScale = Vector3.one * fighters[index].root.localScale.x;
-            current = index; shotPosition = Origin(index, fighters[index].angle);
-            shotVelocity = Direction(index, fighters[index].angle) * fighters[index].power;
+            float angle = fighters[index].angle + (index == 0 ? VolleyAngleOffset(volleyIndex) : 0);
+            current = index; shotPosition = Origin(index, angle);
+            shotVelocity = Direction(index, angle) * fighters[index].power;
+            RollCritical(index);
             shotAge = accumulator = 0; arrow.position = shotPosition;
             arrow.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(shotVelocity.y, shotVelocity.x) * Mathf.Rad2Deg);
             arrow.gameObject.SetActive(true); phase = Phase.Flight;
@@ -286,7 +290,7 @@ namespace MiniFortress
             StopShotTrail();
             if (current == 0 && !miss) { lastPlayerImpact = shotPosition; hasPlayerImpact = true; }
             arrow.gameObject.SetActive(false); burst.position = shotPosition;
-            burst.localScale = Vector3.one * 0.4f; burst.gameObject.SetActive(!miss); int total = 0;
+            burst.localScale = Vector3.one * 0.4f; burst.gameObject.SetActive(!miss); int total = 0, blocked = 0;
             if (!miss)
                 for (int i = 0; i < fighters.Count; i++)
                 {
@@ -294,13 +298,15 @@ namespace MiniFortress
                     Fighter f = fighters[i];
                     Vector2 nearest = new Vector2(f.feet.x, Mathf.Clamp(shotPosition.y, f.feet.y + 0.2f, f.feet.y + 2.9f * f.root.localScale.x));
                     float distance = Vector2.Distance(shotPosition, nearest);
-                    int maximum = fighters[current].definition.damage;
+                    int maximum = ShotDamage(current);
                     float radius = fighters[current].definition.blastRadius;
                     int damage = directHit == i ? maximum : Mathf.RoundToInt(maximum * Mathf.Clamp01(1 - distance / radius));
+                    if (i == 0 && damage > 0) { int taken = AbsorbWithBlock(damage); blocked += damage - taken; damage = taken; }
                     f.hp = Mathf.Max(0, f.hp - damage); total += damage;
                     if (damage > 0) PlayDamageReaction(f);
                 }
-            message = total > 0 ? "명중! 피해 " + total : "빗나갔습니다. 각도와 위력을 조절하세요.";
+            message = total > 0 ? (shotCritical && current == 0 ? "치명타! " : "") + "명중! 피해 " + total : "빗나갔습니다. 각도와 위력을 조절하세요.";
+            if (blocked > 0) message += " · 방어도로 " + blocked + " 막음";
             phase = Phase.Impact; timer = 0.55f;
         }
         void Finish(bool won) { phase = Phase.Finished; message = won ? "승리 · 모든 적을 처치했습니다!" : "패배 · " + fighters[0].name + "가 쓰러졌습니다."; }
@@ -315,6 +321,7 @@ namespace MiniFortress
             accumulator = shotAge = timer = enemyMoveTarget = 0;
             enemyMoveSpent = 0; enemyMovingAfterAttack = hasPlayerImpact = false;
             foreach (Fighter fighter in fighters) ResetFighterAnimation(fighter);
+            BuildDeck(); StartPlayerCardTurn();
             message = fighters[0].name + " 한 명으로 성채를 돌파하세요 · A/D 이동 · W 점프"; UpdatePoses();
         }
         void OnDestroy()

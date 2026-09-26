@@ -133,6 +133,35 @@ public sealed class FortressPlayModeTests
         Assert.That(game.IsFinished, Is.True); Assert.That(game.Message, Does.Contain("패배"));
     }
 
+    void SetField(string name, object value) => typeof(FortressGame).GetField(name, Hidden).SetValue(game, value);
+
+    [UnityTest]
+    public IEnumerator CardsSpendEnergyBlockDamageAndBuffNextAttack()
+    {
+        game.SelectClass(1); game.BeginBattle(); yield return null;
+        Assert.That(game.HandCount, Is.EqualTo(game.Rules.handSize));
+        Assert.That(game.CardEnergy, Is.EqualTo(game.Rules.cardEnergy));
+        Assert.That(game.HandCount + game.DrawPileCount, Is.EqualTo(10));
+        game.RequestPlayCard(0);
+        Assert.That(game.CardEnergy, Is.EqualTo(game.Rules.cardEnergy - 1));
+        Assert.That(game.DiscardPileCount, Is.EqualTo(1));
+
+        var enemy = (FortressCharacterDefinition)Fighter(1).GetType().GetField("definition").GetValue(Fighter(1));
+        SetField("block", enemy.damage + 3); SetField("current", 1);
+        int before = game.GetActor(0).hp;
+        SetField("shotPosition", Feet(0) + Vector2.up * 2);
+        Call("Impact", 0, false);
+        Assert.That(game.GetActor(0).hp, Is.EqualTo(before));
+        Assert.That(game.Block, Is.EqualTo(3));
+
+        game.RequestRestart(); yield return null;
+        SetField("shotDamageBonus", 15);
+        before = game.GetActor(1).hp;
+        SetField("shotPosition", Feet(1) + Vector2.up * 2);
+        Call("Impact", 1, false);
+        Assert.That(before - game.GetActor(1).hp, Is.EqualTo(Mathf.Min(before, game.Classes[1].damage + 15)));
+    }
+
     [UnityTest]
     public IEnumerator RemappedInputActionControlsFire()
     {
