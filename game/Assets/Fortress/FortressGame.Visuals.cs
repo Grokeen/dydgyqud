@@ -37,7 +37,7 @@ namespace MiniFortress
             phase = Phase.Selecting; highlightedClass = playerClass; mouseMove = 0;
             arrow.gameObject.SetActive(false); burst.gameObject.SetActive(false);
             foreach (var fighter in fighters) fighter.root.gameObject.SetActive(false);
-            foreach (var dot in guide) dot.gameObject.SetActive(false);
+            ClearTrajectoryEffects();
         }
         public void SelectClass(int index)
         {
