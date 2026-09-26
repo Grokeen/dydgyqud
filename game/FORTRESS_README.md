@@ -58,6 +58,28 @@ Game 탭을 클릭하면 키보드로 조작할 수 있습니다. 오브젝트�
 - `Assets/Fortress/FortressGame.cs`: 이동, 탄도, 충돌, 다수 적 턴, 승패
 - `Assets/Fortress/FortressGame.Visuals.cs`: 일러스트 불러오기, 캐릭터·무기 아틀라스 분리
 - `Assets/Fortress/FortressGame.Hud.cs`: 한글 UI
+- `Assets/Fortress/FortressGame.Animation.cs`: Animator 파라미터, 공격 준비 시간, 피격·사망·재시작 모션 연결
+
+## 캐릭터 Animator
+
+플레이어 두 직업과 모든 적에 Unity Animator를 연결했습니다. 기존 일러스트의 위치·회전·크기·색상을 애니메이션하는 방식이며, 대기는 호흡, 이동은 몸과 무기의 흔들림, 점프·낙하는 자세 변화로 표현합니다. 활은 당기기와 반동, 창은 뒤로 당긴 뒤 내미는 투척 동작을 사용합니다. 피해를 받으면 붉게 깜빡이며 흔들리고, 사망하면 쓰러진 뒤 사라집니다.
+
+`Assets/Resources/FortressAnimation/Fighter.controller`를 더블클릭하면 Animator 창에서 상태와 전이를 볼 수 있습니다. 같은 폴더의 `.anim` 파일 9개는 Animation 창에서 수정할 수 있습니다.
+
+| 파라미터 | 의미 |
+| --- | --- |
+| `Speed` | 실제 수평 이동 속도 |
+| `Grounded` / `VerticalSpeed` | 착지 여부와 수직 속도 |
+| `Aiming` | 해당 캐릭터의 조준 상태 |
+| `BowAttack` / `SpearAttack` | 공격 모션 트리거 |
+| `Hit` | 피격 모션 트리거 |
+| `Dead` | 사망 상태 |
+
+상태는 `Idle`, `Move`, `Jump`, `Fall`, `Aim`, `BowAttack`, `SpearAttack`, `Hit`, `Death`입니다. 공격 버튼을 누르면 준비 모션 후 활은 0.16초, 창은 0.22초에 발사됩니다. 준비 중에는 이동·추가 발사·턴 종료가 잠기며, 캐릭터 선택이나 재시작으로 취소할 수 있습니다. 사망한 캐릭터는 즉시 전투 판정에서 제외되고 0.9초 동안 사망 모션을 재생합니다.
+
+런타임 계층은 캐릭터 루트 아래 `Motion`(Animator), 그 아래 `Body`와 `AimPivot/WeaponMotion`입니다. 애니메이션은 몸체와 무기 외형만 움직이며 이동 좌표, 충돌 범위, 탄도 계산은 기존 전투 코드가 담당합니다. 재시작과 직업 변경 시 모션·색상·투명도가 초기화됩니다.
+
+에셋이 없으면 에디터에서 자동 생성합니다. **Mini Fortress → Rebuild Character Animations** 메뉴는 기본 컨트롤러와 클립을 다시 생성하므로 직접 편집한 애니메이션도 기본값으로 바뀝니다. 기본 공격 클립의 발사 키 시점을 수정할 때는 `FortressGame.Animation.cs`의 `BowReleaseTime` / `SpearReleaseTime`도 함께 맞추세요.
 
 전장은 생성된 판타지 원화를 사용하며 1920×1080 해상도와 Bilinear 필터로 렌더링합니다. 캐릭터·무기는 투명 PNG 아틀라스에서 분리합니다. 발판 위치와 높이는 배경 원화의 지면에 맞춰 조정했습니다.
 UI는 가독성을 위해 별도로 표시합니다. 화면 구성은 16:9 기준이며 다른 비율에서는 여백을 둡니다.

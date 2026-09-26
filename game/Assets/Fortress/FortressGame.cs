@@ -9,7 +9,7 @@ namespace MiniFortress
     {
         const float Gravity = 12, ShotStep = 0.0125f, MoveLimit = 10;
         const float ActorHeight = 4.2f, ShoulderHeight = 2.5f;
-        enum Phase { Selecting, Aim, Flight, Impact, EnemyMove, EnemyAim, Finished }
+        enum Phase { Selecting, Aim, Attack, Flight, Impact, EnemyMove, EnemyAim, Finished }
         const float EnemyMoveLimit = 4, EnemyMoveSpeed = 3;
         float enemyMoveTarget;
         float enemyMoveSpent;
@@ -27,6 +27,10 @@ namespace MiniFortress
             public Vector2 feet;
             public int hp, maxHp;
             public Transform root, weapon, loadedArrow;
+            public Transform motion, aimPivot, weaponMotion;
+            public Animator animator;
+            public Vector2 previousFeet;
+            public float deathRemaining;
             public SpriteRenderer body;
             public string name;
             public float angle = 48, power = 26;
@@ -142,6 +146,11 @@ namespace MiniFortress
                 MovePlayer(Mathf.Clamp(move, -1, 1) * 5 * dt); FallPlayer(dt);
                 if (keys != null && keys.spaceKey.wasPressedThisFrame && grounded && phase == Phase.Aim) Fire(0);
             }
+            else if (phase == Phase.Attack)
+            {
+                timer -= Time.deltaTime;
+                if (timer <= 0) LaunchShot();
+            }
             else if (phase == Phase.Flight)
             {
                 accumulator += dt;
@@ -164,7 +173,7 @@ namespace MiniFortress
             }
             else if (phase == Phase.EnemyMove) UpdateEnemyMovement(dt);
             else if (phase == Phase.EnemyAim) { timer -= dt; if (timer <= 0) Fire(current); }
-            UpdatePoses();
+            UpdatePoses(dt);
         }
         void MovePlayer(float distance)
         {
@@ -223,19 +232,22 @@ namespace MiniFortress
             if (player.feet.y < -10)
             {
                 player.feet = safePosition; fallSpeed = 0; grounded = true; player.hp = Mathf.Max(0, player.hp - 15);
+                player.previousFeet = player.feet;
+                PlayDamageReaction(player);
                 message = "추락! 체력 15 감소 · 마지막 발판으로 복귀"; if (player.hp == 0) Finish(false);
             }
         }
-        void UpdatePoses()
+        void UpdatePoses(float dt = 0)
         {
             for (int i = 0; i < fighters.Count; i++)
             {
-                Fighter f = fighters[i]; f.root.gameObject.SetActive(f.hp > 0); f.root.position = f.feet;
-                int facing = Facing(i); f.body.flipX = facing < 0; f.weapon.localPosition = Vector3.up * ShoulderHeight;
-                Vector2 d = Direction(i, f.angle);
-                f.weapon.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
-                f.weapon.localScale = new Vector3(1, facing, 1);
-                f.loadedArrow.gameObject.SetActive(!(i == 0 && playerHasAttacked) && !((phase == Phase.Flight || phase == Phase.Impact) && current == i));
+                Fighter f = fighters[i]; f.root.position = f.feet;
+                UpdateFighterAnimation(i, dt);
+                if (f.hp <= 0) continue;
+                f.motion.localScale = new Vector3(Facing(i), 1, 1);
+                f.aimPivot.localPosition = Vector3.up * ShoulderHeight;
+                f.aimPivot.localRotation = Quaternion.Euler(0, 0, f.angle);
+                f.loadedArrow.gameObject.SetActive(!(i == 0 && playerHasAttacked && phase != Phase.Attack) && !((phase == Phase.Flight || phase == Phase.Impact) && current == i));
             }
             Vector2 point = Origin(0, fighters[0].angle), speed = Direction(0, fighters[0].angle) * fighters[0].power;
             bool visible = phase == Phase.Aim && !playerHasAttacked;
@@ -272,6 +284,15 @@ namespace MiniFortress
                 playerHasAttacked = true;
             }
             else if (phase != Phase.EnemyAim || index != current) return;
+            current = index;
+            phase = Phase.Attack;
+            timer = index == 0 && IsSpearman ? SpearReleaseTime : BowReleaseTime;
+            fighters[index].animator.SetTrigger(index == 0 && IsSpearman ? SpearAttackParameter : BowAttackParameter);
+            message = fighters[index].name + (index == 0 && IsSpearman ? " 창 투척 준비…" : " 활시위를 당기는 중…");
+        }
+        void LaunchShot()
+        {
+            int index = current;
             arrowProjectile.gameObject.SetActive(false); spearProjectile.gameObject.SetActive(false);
             arrow = index == 0 && IsSpearman ? spearProjectile : arrowProjectile;
             current = index; shotPosition = Origin(index, fighters[index].angle);
@@ -297,6 +318,7 @@ namespace MiniFortress
                     float radius = current == 0 && IsSpearman ? 1.5f : 3.5f;
                     int damage = directHit == i ? maximum : Mathf.RoundToInt(maximum * Mathf.Clamp01(1 - distance / radius));
                     f.hp = Mathf.Max(0, f.hp - damage); total += damage;
+                    if (damage > 0) PlayDamageReaction(f);
                 }
             message = total > 0 ? "명중! 피해 " + total : "빗나갔습니다. 각도와 위력을 조절하세요.";
             phase = Phase.Impact; timer = 0.55f;
@@ -498,6 +520,7 @@ namespace MiniFortress
             arrowProjectile.gameObject.SetActive(false); spearProjectile.gameObject.SetActive(false); burst.gameObject.SetActive(false);
             accumulator = shotAge = timer = enemyMoveTarget = 0;
             enemyMoveSpent = 0; enemyMovingAfterAttack = hasPlayerImpact = false;
+            foreach (Fighter fighter in fighters) ResetFighterAnimation(fighter);
             message = fighters[0].name + " 한 명으로 성채를 돌파하세요 · A/D 이동 · W 점프"; UpdatePoses();
         }
         void OnDestroy()

@@ -76,6 +76,7 @@ namespace MiniFortress
         void BuildWorld()
         {
             LoadIllustrations();
+            LoadFighterAnimations();
             Sprite background = MakeSprite(arenaArt, 60, Vector2.one * 0.5f);
             Transform painting = ArtObject(transform, "Painted citadel battlefield", background, new Vector2(50, 18), -20);
             painting.localScale = new Vector3((106.66667f / 60) / (arenaArt.width / (float)arenaArt.height), 1, 1);
@@ -84,14 +85,18 @@ namespace MiniFortress
         {
             var f = new Fighter { name = name, feet = feet, maxHp = hp, hp = hp };
             f.root = new GameObject(name).transform; f.root.SetParent(transform); f.root.position = feet;
-            f.body = f.root.gameObject.AddComponent<SpriteRenderer>();
+            f.motion = new GameObject("Motion").transform; f.motion.SetParent(f.root, false);
+            f.body = ArtObject(f.motion, "Body", illustratedBodies[0], Vector2.zero, 12).GetComponent<SpriteRenderer>();
             f.body.sprite = illustratedBodies[fighters.Count == 0 ? 0 : large ? 3 : 2]; f.body.sortingOrder = 12;
             if (large) f.root.localScale = Vector3.one * 1.25f;
             var shadow = ArtObject(f.root, "Ground shadow", softCircle, new Vector2(0, 0.05f), 10);
             shadow.localScale = new Vector3(2.9f, 0.4f, 1); shadow.GetComponent<SpriteRenderer>().color = new Color(0, 0, 0, 0.8f);
-            f.weapon = new GameObject("Aimed longbow").transform; f.weapon.SetParent(f.root, false);
+            f.aimPivot = new GameObject("AimPivot").transform; f.aimPivot.SetParent(f.motion, false);
+            f.weaponMotion = new GameObject("WeaponMotion").transform; f.weaponMotion.SetParent(f.aimPivot, false);
+            f.weapon = new GameObject("Aimed longbow").transform; f.weapon.SetParent(f.weaponMotion, false);
             ArtObject(f.weapon, "Painted bow", bowArt, new Vector2(1.1f, 0), 15);
             f.loadedArrow = BuildArrow(f.weapon, "Ready arrow", 16); f.loadedArrow.localPosition = Vector3.right * 1.6f;
+            InitializeFighterAnimator(f);
             fighters.Add(f);
         }
         void InitializeClasses()
@@ -99,7 +104,7 @@ namespace MiniFortress
             Fighter player = fighters[0];
             for (int i = 0; i < 2; i++) { classSprites[i] = illustratedBodies[i]; classPortraits[i] = illustratedCharacters[i]; }
             bowWeapon = player.weapon; bowLoaded = player.loadedArrow;
-            spearWeapon = new GameObject("Aimed throwing spear").transform; spearWeapon.SetParent(player.root, false);
+            spearWeapon = new GameObject("Aimed throwing spear").transform; spearWeapon.SetParent(player.weaponMotion, false);
             spearLoaded = BuildSpear(spearWeapon, "Held spear", 16); spearLoaded.localPosition = Vector3.right * 1.6f;
             spearWeapon.gameObject.SetActive(false);
             spearProjectile = BuildSpear(transform, "Thrown spear", 30); spearProjectile.gameObject.SetActive(false);
