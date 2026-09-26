@@ -1,29 +1,28 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
 
 namespace MiniFortress
 {
     public sealed partial class FortressGame : MonoBehaviour
     {
-        const float Gravity = 12, ShotStep = 0.0125f, MoveLimit = 10;
-        const float ActorHeight = 4.2f, ShoulderHeight = 2.5f;
+        [SerializeField] FortressArena arena;
+        [SerializeField] FortressInput input;
+        [SerializeField] FortressHud hud;
+        float Gravity => arena.rules.gravity;
+        float ShotStep => arena.rules.shotStep;
+        float MoveLimit => fighters[0].definition.movementPerTurn;
         enum Phase { Selecting, Aim, Attack, Flight, Impact, EnemyMove, EnemyAim, Finished }
-        const float EnemyMoveLimit = 4, EnemyMoveSpeed = 3;
+        float EnemyMoveLimit => fighters[current].definition.movementPerTurn;
+        float EnemyMoveSpeed => fighters[current].definition.movementSpeed;
         float enemyMoveTarget;
         float enemyMoveSpent;
         bool enemyMovingAfterAttack, hasPlayerImpact;
         Vector2 lastPlayerImpact;
-        enum PlayerClass { Archer, Spearman }
-        PlayerClass playerClass, highlightedClass;
-        readonly Sprite[] classSprites = new Sprite[2];
-        readonly Texture2D[] classPortraits = new Texture2D[2];
-        Transform bowWeapon, spearWeapon, bowLoaded, spearLoaded, arrowProjectile, spearProjectile;
-        bool IsSpearman => playerClass == PlayerClass.Spearman;
-        string AttackName => IsSpearman ? "창 투척" : "화살 발사";
+        int playerClass, highlightedClass;
+        string AttackName => fighters[0].definition.AttackName;
         sealed class Fighter
         {
+            public FortressCharacterDefinition definition;
             public Vector2 feet;
             public int hp, maxHp;
             public Transform root, weapon, loadedArrow;
@@ -38,16 +37,11 @@ namespace MiniFortress
         struct Platform
         {
             public float left, right, top, bottom;
-            public Platform(float l, float r, float t, float b) { left = l; right = r; top = t; bottom = b; }
+            public bool allowDrop;
+            public Platform(Rect r, bool drop) { left = r.xMin; right = r.xMax; top = r.yMax; bottom = r.yMin; allowDrop = drop; }
         }
-        readonly Platform[] terrain = {
-            new Platform(-3, 18.3f, 24.7f, -14), new Platform(18.3f, 32.7f, 6.9f, -14),
-            new Platform(38.3f, 52, 8.6f, -14), new Platform(18.3f, 63, 18.4f, 17.7f),
-            new Platform(63, 81.5f, 28.5f, -14), new Platform(81.5f, 103, 6.9f, -14),
-            new Platform(92, 103, 17, 16),
-            new Platform(54, 58, 22, 18.4f), new Platform(58, 63, 24.5f, 18.4f)
-        };
-        readonly Vector2[] starts = { new Vector2(9, 24.7f), new Vector2(46, 18.4f), new Vector2(72, 28.5f), new Vector2(97, 17), new Vector2(85, 6.9f) };
+        Platform[] terrain;
+        Vector2[] starts;
         readonly List<Fighter> fighters = new List<Fighter>();
         readonly List<Object> ownedAssets = new List<Object>();
         readonly List<Transform> guide = new List<Transform>();
@@ -55,7 +49,6 @@ namespace MiniFortress
         RenderTexture pixelFrame;
         Sprite square;
         Transform arrow, burst;
-        Font uiFont;
         Phase phase;
         Vector2 shotPosition, shotVelocity, safePosition;
         float accumulator, shotAge, timer, moveRemaining, fallSpeed, mouseMove;
@@ -63,88 +56,86 @@ namespace MiniFortress
         bool playerHasAttacked;
         int current, round, playerFacing = 1;
         string message;
-        readonly Color gold = new Color(0.77f, 0.64f, 0.39f);
-        readonly Color pale = new Color(0.9f, 0.93f, 0.91f);
-        readonly Color blue = new Color(0.3f, 0.76f, 0.94f);
+        Vector3 cameraHome;
+        float cameraSize;
+        bool ready;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        static void Boot()
-        {
-            if (SceneManager.GetActiveScene().name == "SampleScene" && FindAnyObjectByType<FortressGame>() == null)
-                new GameObject("Archer Fortress").AddComponent<FortressGame>();
-        }
         void Start()
         {
-            square = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.one * 0.5f, 1);
-            ownedAssets.Add(square);
-            foreach (Camera camera in FindObjectsByType<Camera>()) camera.enabled = false;
-            var displayCamera = new GameObject("HUD display camera").AddComponent<Camera>();
-            displayCamera.transform.SetParent(transform);
-            displayCamera.clearFlags = CameraClearFlags.SolidColor;
-            displayCamera.backgroundColor = Color.black;
-            displayCamera.cullingMask = 0;
-            worldCamera = new GameObject("Illustrated battlefield camera").AddComponent<Camera>();
-            worldCamera.transform.SetParent(transform);
-            worldCamera.transform.position = new Vector3(50, 18, -30);
-            worldCamera.orthographic = true; worldCamera.orthographicSize = 30; worldCamera.aspect = 16f / 9;
-            worldCamera.clearFlags = CameraClearFlags.SolidColor;
-            worldCamera.backgroundColor = new Color(0.065f, 0.105f, 0.18f);
+            if (!arena || !input || !input.actions || !hud)
+            { Debug.LogError("FortressGame: Arena / Input / HUD 연결이 필요합니다.", this); enabled = false; return; }
+            var errors = arena.ValidateSetup();
+            if (errors.Count > 0) { Debug.LogError(string.Join("\n", errors), arena); enabled = false; return; }
+            worldCamera = arena.worldCamera;
+            cameraHome = worldCamera.transform.position; cameraSize = worldCamera.orthographicSize;
+            worldCamera.aspect = 16f / 9;
             pixelFrame = new RenderTexture(1920, 1080, 24) { filterMode = FilterMode.Bilinear, antiAliasing = 1 };
             pixelFrame.Create(); worldCamera.targetTexture = pixelFrame;
-            uiFont = Font.CreateDynamicFontFromOSFont(new[] { "Malgun Gothic", "Arial" }, 20);
-            ownedAssets.Add(uiFont);
-            BuildWorld();
-            AddFighter("궁수", starts[0], 120, blue, false);
-            AddFighter("다리 파수꾼", starts[1], 40, new Color(0.56f, 0.65f, 0.29f), false);
-            AddFighter("성채 대장", starts[2], 64, new Color(0.73f, 0.35f, 0.22f), true);
-            AddFighter("절벽 사수", starts[3], 40, new Color(0.62f, 0.56f, 0.31f), false);
-            AddFighter("하단 경비병", starts[4], 40, new Color(0.45f, 0.62f, 0.29f), false);
-            arrow = BuildArrow(transform, "Flying arrow", 30);
-            arrowProjectile = arrow;
-            InitializeClasses();
-            burst = Shape("Impact flash", Vector2.zero, Vector2.one, new Color(1, 0.6f, 0.2f, 0.7f), 31);
-            burst.GetComponent<SpriteRenderer>().sprite = softCircle;
-            for (int i = 0; i < 28; i++) guide.Add(Shape("Aim dot", Vector2.zero, Vector2.one * 0.13f, new Color(1, 0.78f, 0.43f), 22));
-            foreach (Transform dot in guide) dot.GetComponent<SpriteRenderer>().sprite = softCircle;
-            Restart(); OpenSelection();
+            square = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.one * .5f, 1);
+            ownedAssets.Add(square);
+            LoadArenaLayout();
+            AddFighter(arena.playerClasses[0], starts[0], null);
+            var spawns = arena.enemySpawns.GetComponentsInChildren<FortressSpawnPoint>();
+            foreach (var spawn in spawns) AddFighter(spawn.character, spawn.transform.position, spawn.displayName);
+            arrow = ArtObject(transform, "Projectile", arena.playerClasses[0].projectile, Vector2.zero, 30);
+            burst = Shape("Impact flash", Vector2.zero, Vector2.one, new Color(1, .6f, .2f, .7f), 31);
+            burst.GetComponent<SpriteRenderer>().sprite = arena.effectSprite;
+            for (int i = 0; i < 28; i++)
+            {
+                var dot = Shape("Aim dot", Vector2.zero, Vector2.one * .13f, new Color(1, .78f, .43f), 22);
+                dot.GetComponent<SpriteRenderer>().sprite = arena.effectSprite; guide.Add(dot);
+            }
+            Restart(); OpenSelection(); ready = true;
+            hud.Bind();
         }
+
+        void LoadArenaLayout()
+        {
+            var boxes = arena.terrainRoot.GetComponentsInChildren<FortressTerrain>();
+            terrain = new Platform[boxes.Length];
+            for (int i = 0; i < boxes.Length; i++) terrain[i] = new Platform(boxes[i].WorldRect, boxes[i].allowDropThrough);
+            var spawns = arena.enemySpawns.GetComponentsInChildren<FortressSpawnPoint>();
+            starts = new Vector2[spawns.Length + 1]; starts[0] = arena.playerSpawn.position;
+            for (int i = 0; i < spawns.Length; i++) starts[i + 1] = spawns[i].transform.position;
+        }
+        float Height(Fighter f) => f.definition.height * f.root.localScale.x;
+        float HalfWidth(Fighter f) => f.definition.halfWidth * f.root.localScale.x;
+        bool ShotOutside(Vector2 point) => !arena.rules.projectileLimits.Contains(point);
         int Facing(int index) => index == 0 ? playerFacing : fighters[0].feet.x < fighters[index].feet.x ? -1 : 1;
         Vector2 Direction(int index, float degrees)
         {
             float r = degrees * Mathf.Deg2Rad;
             return new Vector2(Facing(index) * Mathf.Cos(r), Mathf.Sin(r));
         }
-        Vector2 Origin(int index, float degrees) => fighters[index].feet + Vector2.up * (ShoulderHeight * fighters[index].root.localScale.x) + Direction(index, degrees) * (1.6f * fighters[index].root.localScale.x);
+        Vector2 Origin(int index, float degrees) => fighters[index].feet + Vector2.up * (fighters[index].definition.shoulderHeight * fighters[index].root.localScale.x) + Direction(index, degrees) * (fighters[index].definition.muzzleDistance * fighters[index].root.localScale.x);
         void Update()
         {
             if (fighters.Count == 0) return;
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
-            Keyboard keys = Keyboard.current;
+
             if (phase == Phase.Selecting)
             {
-                if (keys != null)
-                {
-                    if (keys.digit1Key.wasPressedThisFrame || keys.leftArrowKey.wasPressedThisFrame) highlightedClass = PlayerClass.Archer;
-                    if (keys.digit2Key.wasPressedThisFrame || keys.rightArrowKey.wasPressedThisFrame) highlightedClass = PlayerClass.Spearman;
-                    if (keys.enterKey.wasPressedThisFrame) BeginBattle();
-                }
+                if (input.DirectSelection >= 0) SelectClass(input.DirectSelection);
+                if (input.SelectionDelta != 0) SelectClass((highlightedClass + input.SelectionDelta + arena.playerClasses.Length) % arena.playerClasses.Length);
+                if (input.Confirm) BeginBattle();
                 return;
             }
-            if (keys != null && keys.escapeKey.wasPressedThisFrame) { OpenSelection(); return; }
-            if (keys != null && keys.rKey.wasPressedThisFrame) { Restart(); return; }
+            if (input.Back) { OpenSelection(); return; }
+            if (input.Restart) { Restart(); return; }
             if (phase == Phase.Aim)
             {
-                Fighter player = fighters[0]; float move = mouseMove; mouseMove = 0;
-                if (keys != null)
+                Fighter player = fighters[0];
+                if (!playerHasAttacked)
                 {
-                    move += (keys.dKey.isPressed ? 1 : 0) - (keys.aKey.isPressed ? 1 : 0);
-                    player.angle = Mathf.Clamp(player.angle + ((keys.upArrowKey.isPressed ? 1 : 0) - (keys.downArrowKey.isPressed ? 1 : 0)) * 35 * dt, 10, 80);
-                    player.power = Mathf.Clamp(player.power + ((keys.rightArrowKey.isPressed ? 1 : 0) - (keys.leftArrowKey.isPressed ? 1 : 0)) * 12 * dt, 10, 38);
-                    if (keys.wKey.wasPressedThisFrame) Jump();
-                    if (keys.sKey.wasPressedThisFrame) DropFromBridge();
+                    SetAngle(player.angle + input.Angle * arena.rules.angleSpeed * dt);
+                    SetPower(player.power + input.Power * arena.rules.powerSpeed * dt);
                 }
-                MovePlayer(Mathf.Clamp(move, -1, 1) * 5 * dt); FallPlayer(dt);
-                if (keys != null && keys.spaceKey.wasPressedThisFrame && grounded && phase == Phase.Aim) Fire(0);
+                if (input.Jump) Jump();
+                if (input.Drop) DropFromBridge();
+                MovePlayer(Mathf.Clamp(mouseMove + input.Move, -1, 1) * player.definition.movementSpeed * dt);
+                FallPlayer(dt);
+                if (input.Fire && grounded && phase == Phase.Aim) Fire(0);
+                if (input.EndTurn) EndPlayerTurn();
             }
             else if (phase == Phase.Attack)
             {
@@ -161,13 +152,13 @@ namespace MiniFortress
                     arrow.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(shotVelocity.y, shotVelocity.x) * Mathf.Rad2Deg);
                     int hit = HitFighter(shotPosition, current);
                     if (hit >= 0 || HitsTerrain(shotPosition)) Impact(hit);
-                    else if (shotPosition.x < -6 || shotPosition.x > 106 || shotPosition.y < -13 || shotAge > 10) Impact(-1, true);
+                    else if (ShotOutside(shotPosition) || shotAge > arena.rules.shotLifetime) Impact(-1, true);
                 }
             }
             else if (phase == Phase.Impact)
             {
                 timer -= dt;
-                float diameter = current == 0 && IsSpearman ? 3 : 6;
+                float diameter = fighters[current].definition.blastRadius * 2;
                 burst.localScale = Vector3.one * Mathf.Lerp(diameter, 0.4f, Mathf.Clamp01(timer / 0.55f));
                 if (timer <= 0) ResolveShot();
             }
@@ -180,10 +171,10 @@ namespace MiniFortress
             if (phase != Phase.Aim || moveRemaining <= 0) return;
             if (Mathf.Abs(distance) > 0.0001f) playerFacing = distance > 0 ? 1 : -1;
             Fighter player = fighters[0];
-            float wanted = Mathf.Clamp(player.feet.x + Mathf.Clamp(distance, -moveRemaining, moveRemaining), 0, 101);
+            float wanted = Mathf.Clamp(player.feet.x + Mathf.Clamp(distance, -moveRemaining, moveRemaining), arena.rules.horizontalLimits.x, arena.rules.horizontalLimits.y - 1);
             foreach (Platform p in terrain)
             {
-                if (player.feet.y >= p.top - 0.05f || player.feet.y + ActorHeight <= p.bottom) continue;
+                if (player.feet.y >= p.top - 0.05f || player.feet.y + Height(player) <= p.bottom) continue;
                 if (wanted + 0.55f > p.left && wanted - 0.55f < p.right)
                 {
                     if (player.feet.x <= p.left) wanted = Mathf.Min(wanted, p.left - 0.55f);
@@ -195,23 +186,24 @@ namespace MiniFortress
         void LateUpdate()
         {
             if (worldCamera == null) return;
-            // Keep high-arcing shots visible while retaining the complete battlefield.
-            float top = phase == Phase.Flight ? Mathf.Max(48, shotPosition.y + 5) : 48;
-            float size = (top + 12) * 0.5f;
+            if (!arena.followHighShots) return;
+            float homeTop = cameraHome.y + cameraSize;
+            float top = phase == Phase.Flight ? Mathf.Max(homeTop, shotPosition.y + 5) : homeTop;
+            float size = (top - (cameraHome.y - cameraSize)) * .5f;
             float blend = 1 - Mathf.Exp(-6 * Time.deltaTime);
             worldCamera.orthographicSize = Mathf.Lerp(worldCamera.orthographicSize, size, blend);
-            worldCamera.transform.position = Vector3.Lerp(worldCamera.transform.position, new Vector3(50, top - size, -30), blend);
+            worldCamera.transform.position = Vector3.Lerp(worldCamera.transform.position, new Vector3(cameraHome.x, top - size, cameraHome.z), blend);
         }
         void Jump()
         {
-            if (phase != Phase.Aim || !grounded || moveRemaining < 1) return;
-            moveRemaining -= 1; fallSpeed = 11; grounded = false;
+            if (phase != Phase.Aim || !grounded || moveRemaining < arena.rules.jumpCost) return;
+            moveRemaining -= arena.rules.jumpCost; fallSpeed = arena.rules.jumpSpeed; grounded = false;
         }
         void DropFromBridge()
         {
             if (phase != Phase.Aim || !grounded) return;
             foreach (Platform p in terrain)
-                if (p.top - p.bottom <= 1.1f && fighters[0].feet.x >= p.left && fighters[0].feet.x <= p.right && Mathf.Abs(fighters[0].feet.y - p.top) < 0.05f)
+                if (p.allowDrop && fighters[0].feet.x >= p.left && fighters[0].feet.x <= p.right && Mathf.Abs(fighters[0].feet.y - p.top) < 0.05f)
                 {
                     fighters[0].feet.y -= 0.12f; fallSpeed = 0; grounded = false; return;
                 }
@@ -225,16 +217,16 @@ namespace MiniFortress
             {
                 if (player.feet.x < p.left || player.feet.x > p.right) continue;
                 if (fallSpeed <= 0 && oldY >= p.top - 0.06f && nextY <= p.top) landing = Mathf.Max(landing, p.top);
-                if (fallSpeed > 0 && oldY + ActorHeight <= p.bottom && nextY + ActorHeight >= p.bottom) { nextY = p.bottom - ActorHeight; fallSpeed = 0; }
+                if (fallSpeed > 0 && oldY + Height(player) <= p.bottom && nextY + Height(player) >= p.bottom) { nextY = p.bottom - Height(player); fallSpeed = 0; }
             }
             if (!float.IsNegativeInfinity(landing)) { nextY = landing; fallSpeed = 0; grounded = true; }
             player.feet.y = nextY; if (grounded) safePosition = player.feet;
-            if (player.feet.y < -10)
+            if (player.feet.y < arena.rules.fallRespawnY)
             {
-                player.feet = safePosition; fallSpeed = 0; grounded = true; player.hp = Mathf.Max(0, player.hp - 15);
+                player.feet = safePosition; fallSpeed = 0; grounded = true; player.hp = Mathf.Max(0, player.hp - arena.rules.fallDamage);
                 player.previousFeet = player.feet;
                 PlayDamageReaction(player);
-                message = "추락! 체력 15 감소 · 마지막 발판으로 복귀"; if (player.hp == 0) Finish(false);
+                message = "추락! 체력 " + arena.rules.fallDamage + " 감소 · 마지막 발판으로 복귀"; if (player.hp == 0) Finish(false);
             }
         }
         void UpdatePoses(float dt = 0)
@@ -245,7 +237,7 @@ namespace MiniFortress
                 UpdateFighterAnimation(i, dt);
                 if (f.hp <= 0) continue;
                 f.motion.localScale = new Vector3(Facing(i), 1, 1);
-                f.aimPivot.localPosition = Vector3.up * ShoulderHeight;
+                f.aimPivot.localPosition = Vector3.up * f.definition.shoulderHeight;
                 f.aimPivot.localRotation = Quaternion.Euler(0, 0, f.angle);
                 f.loadedArrow.gameObject.SetActive(!(i == 0 && playerHasAttacked && phase != Phase.Attack) && !((phase == Phase.Flight || phase == Phase.Impact) && current == i));
             }
@@ -257,7 +249,7 @@ namespace MiniFortress
                 dot.gameObject.SetActive(visible); dot.position = point;
             }
         }
-        static void Integrate(ref Vector2 p, ref Vector2 v)
+        void Integrate(ref Vector2 p, ref Vector2 v)
         {
             p += v * ShotStep + Vector2.down * (0.5f * Gravity * ShotStep * ShotStep); v += Vector2.down * (Gravity * ShotStep);
         }
@@ -272,7 +264,7 @@ namespace MiniFortress
             {
                 if (i == owner || fighters[i].hp <= 0 || (owner > 0 && i > 0)) continue;
                 Fighter f = fighters[i]; float scale = f.root.localScale.x;
-                if (Mathf.Abs(p.x - f.feet.x) <= 0.7f * scale && p.y >= f.feet.y && p.y <= f.feet.y + ActorHeight * scale) return i;
+                if (Mathf.Abs(p.x - f.feet.x) <= f.definition.halfWidth * scale && p.y >= f.feet.y && p.y <= f.feet.y + f.definition.height * scale) return i;
             }
             return -1;
         }
@@ -286,21 +278,21 @@ namespace MiniFortress
             else if (phase != Phase.EnemyAim || index != current) return;
             current = index;
             phase = Phase.Attack;
-            timer = index == 0 && IsSpearman ? SpearReleaseTime : BowReleaseTime;
-            fighters[index].animator.SetTrigger(index == 0 && IsSpearman ? SpearAttackParameter : BowAttackParameter);
-            message = fighters[index].name + (index == 0 && IsSpearman ? " 창 투척 준비…" : " 활시위를 당기는 중…");
+            timer = fighters[index].definition.releaseTime;
+            fighters[index].animator.SetTrigger(fighters[index].definition.weapon == FortressWeapon.Spear ? SpearAttackParameter : BowAttackParameter);
+            message = fighters[index].name + (fighters[index].definition.weapon == FortressWeapon.Spear ? " 창 투척 준비…" : " 활시위를 당기는 중…");
         }
         void LaunchShot()
         {
             int index = current;
-            arrowProjectile.gameObject.SetActive(false); spearProjectile.gameObject.SetActive(false);
-            arrow = index == 0 && IsSpearman ? spearProjectile : arrowProjectile;
+            arrow.GetComponent<SpriteRenderer>().sprite = fighters[index].definition.projectile;
+            arrow.localScale = Vector3.one * fighters[index].root.localScale.x;
             current = index; shotPosition = Origin(index, fighters[index].angle);
             shotVelocity = Direction(index, fighters[index].angle) * fighters[index].power;
             shotAge = accumulator = 0; arrow.position = shotPosition;
             arrow.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(shotVelocity.y, shotVelocity.x) * Mathf.Rad2Deg);
             arrow.gameObject.SetActive(true); phase = Phase.Flight;
-            message = fighters[index].name + (index == 0 && IsSpearman ? "의 창 투척!" : "의 화살!");
+            message = fighters[index].name + (fighters[index].definition.weapon == FortressWeapon.Spear ? "의 창 투척!" : "의 화살!");
         }
         void Impact(int directHit, bool miss = false)
         {
@@ -314,8 +306,8 @@ namespace MiniFortress
                     Fighter f = fighters[i];
                     Vector2 nearest = new Vector2(f.feet.x, Mathf.Clamp(shotPosition.y, f.feet.y + 0.2f, f.feet.y + 2.9f * f.root.localScale.x));
                     float distance = Vector2.Distance(shotPosition, nearest);
-                    int maximum = current == 0 ? (IsSpearman ? 40 : 32) : 10;
-                    float radius = current == 0 && IsSpearman ? 1.5f : 3.5f;
+                    int maximum = fighters[current].definition.damage;
+                    float radius = fighters[current].definition.blastRadius;
                     int damage = directHit == i ? maximum : Mathf.RoundToInt(maximum * Mathf.Clamp01(1 - distance / radius));
                     f.hp = Mathf.Max(0, f.hp - damage); total += damage;
                     if (damage > 0) PlayDamageReaction(f);
@@ -323,201 +315,14 @@ namespace MiniFortress
             message = total > 0 ? "명중! 피해 " + total : "빗나갔습니다. 각도와 위력을 조절하세요.";
             phase = Phase.Impact; timer = 0.55f;
         }
-        int EnemiesAlive()
-        {
-            int count = 0; for (int i = 1; i < fighters.Count; i++) if (fighters[i].hp > 0) count++; return count;
-        }
-        void ResolveShot()
-        {
-            burst.gameObject.SetActive(false);
-            if (fighters[0].hp <= 0) { Finish(false); return; }
-            if (EnemiesAlive() == 0) { Finish(true); return; }
-            if (current == 0)
-            {
-                phase = Phase.Aim;
-                message += " · 남은 이동 후 '턴 넘기기'를 누르세요.";
-            }
-            else if (!TryEnemyRepositionAfterAttack()) NextTurn();
-        }
-        void EndPlayerTurn()
-        {
-            // A shot, landing, or exhausted movement never ends the player's turn automatically.
-            if (phase != Phase.Aim || current != 0 || !grounded) return;
-            mouseMove = 0;
-            NextTurn();
-        }
-        void NextTurn()
-        {
-            burst.gameObject.SetActive(false);
-            if (fighters[0].hp <= 0) { Finish(false); return; }
-            if (EnemiesAlive() == 0) { Finish(true); return; }
-            do { current++; } while (current < fighters.Count && fighters[current].hp <= 0);
-            if (current >= fighters.Count)
-            {
-                current = 0; round++; phase = Phase.Aim; moveRemaining = MoveLimit; playerHasAttacked = false;
-                message = "내 턴 · 이동하고 조준한 뒤 " + AttackName + "!";
-            }
-            else PlanEnemyTurn();
-        }
-        bool EnemyCanStand(int index, float x)
-        {
-            Fighter enemy = fighters[index];
-            float halfWidth = 0.7f * enemy.root.localScale.x;
-            float height = ActorHeight * enemy.root.localScale.x;
-            if (x - halfWidth < 0 || x + halfWidth > 102) return false;
-            // Both feet and the centre need support; never cross a gap or walk off a ledge.
-            for (int sample = -1; sample <= 1; sample++)
-            {
-                float foot = x + sample * halfWidth;
-                bool supported = false;
-                foreach (Platform p in terrain)
-                    if (Mathf.Abs(p.top - enemy.feet.y) < 0.05f && foot >= p.left && foot <= p.right) { supported = true; break; }
-                if (!supported) return false;
-            }
-            foreach (Platform p in terrain)
-                if (x + halfWidth > p.left && x - halfWidth < p.right && enemy.feet.y + 0.05f < p.top && enemy.feet.y + height > p.bottom)
-                    return false;
-            for (int i = 0; i < fighters.Count; i++)
-            {
-                if (i == index || fighters[i].hp <= 0) continue;
-                Fighter other = fighters[i];
-                if (Mathf.Abs(x - other.feet.x) < halfWidth + 0.7f * other.root.localScale.x + 0.2f &&
-                    enemy.feet.y < other.feet.y + ActorHeight * other.root.localScale.x && enemy.feet.y + height > other.feet.y)
-                    return false;
-            }
-            return true;
-        }
-        float ReachableEnemyX(int index, float distance)
-        {
-            float start = fighters[index].feet.x, last = start;
-            int steps = Mathf.CeilToInt(Mathf.Abs(distance) / 0.1f);
-            for (int i = 1; i <= steps; i++)
-            {
-                float candidate = start + distance * i / steps;
-                if (!EnemyCanStand(index, candidate)) break;
-                last = candidate;
-            }
-            return last;
-        }
-        float EnemyPositionRisk(int index, float x)
-        {
-            Fighter enemy = fighters[index];
-            Vector2 centre = new Vector2(x, enemy.feet.y + 1.6f * enemy.root.localScale.x);
-            float risk = hasPlayerImpact ? 4 * Mathf.Clamp01(1 - Vector2.Distance(centre, lastPlayerImpact) / 7) : 0;
-            // Terrain that blocks a straight shot offers some cover, but is not treated as immunity to arcs.
-            Vector2 playerCentre = fighters[0].feet + Vector2.up * ShoulderHeight;
-            bool cover = false;
-            for (int s = 1; s < 40; s++)
-                if (HitsTerrain(Vector2.Lerp(playerCentre, centre, s / 40f))) { cover = true; break; }
-            risk += cover ? 0.3f : 1.5f;
-            for (int i = 1; i < fighters.Count; i++)
-                if (i != index && fighters[i].hp > 0)
-                    risk += 0.8f * Mathf.Clamp01(1 - Vector2.Distance(centre, fighters[i].feet + Vector2.up * 1.6f) / 4);
-            return risk;
-        }
-        void PlanEnemyTurn()
-        {
-            enemyMoveSpent = 0; enemyMovingAfterAttack = false;
-            Fighter enemy = fighters[current];
-            float start = enemy.feet.x;
-            float baseline = FindEnemyShot(current, out _, out _);
-            float bestScore = baseline, destination = start;
-            for (int option = -2; baseline > 1 && option <= 2; option++)
-            {
-                if (option == 0) continue;
-                float candidate = ReachableEnemyX(current, option * EnemyMoveLimit / 2);
-                if (Mathf.Abs(candidate - start) < 0.2f) continue;
-                enemy.feet.x = candidate;
-                float error = FindEnemyShot(current, out _, out _);
-                enemy.feet.x = start;
-                float score = error + Mathf.Abs(candidate - start) * 0.12f;
-                if (score < bestScore) { bestScore = score; destination = candidate; }
-            }
-            // Move first only when it materially improves a shot; a good firing position is worth keeping.
-            if (baseline > 1 && baseline - bestScore > 0.8f && Mathf.Abs(destination - start) > 0.2f)
-                BeginEnemyMovement(destination, false);
-            else BeginEnemyAim();
-        }
-        bool TryEnemyRepositionAfterAttack()
-        {
-            float budget = EnemyMoveLimit - enemyMoveSpent;
-            if (budget < 0.2f) return false;
-            float start = fighters[current].feet.x;
-            float baseline = EnemyPositionRisk(current, start);
-            float bestScore = baseline, destination = start;
-            for (int option = -2; option <= 2; option++)
-            {
-                if (option == 0) continue;
-                float candidate = ReachableEnemyX(current, option * budget / 2);
-                float score = EnemyPositionRisk(current, candidate) + Mathf.Abs(candidate - start) * 0.06f;
-                if (score < bestScore) { bestScore = score; destination = candidate; }
-            }
-            if (baseline - bestScore < 0.25f || Mathf.Abs(destination - start) < 0.2f) return false;
-            BeginEnemyMovement(destination, true); return true;
-        }
-        void BeginEnemyMovement(float destination, bool afterAttack)
-        {
-            enemyMoveTarget = destination; enemyMovingAfterAttack = afterAttack;
-            phase = Phase.EnemyMove;
-            message = fighters[current].name + (afterAttack ? " 공격 후 안전한 위치로 이동…" : " 사격 위치로 이동…");
-        }
-        void BeginEnemyAim()
-        {
-            phase = Phase.EnemyAim; timer = 0.85f;
-            PlanEnemy(current); message = fighters[current].name + " 조준 중…";
-        }
-        void UpdateEnemyMovement(float dt)
-        {
-            if (phase != Phase.EnemyMove) return;
-            Fighter enemy = fighters[current];
-            float next = Mathf.MoveTowards(enemy.feet.x, enemyMoveTarget, EnemyMoveSpeed * Mathf.Clamp(dt, 0, 0.05f));
-            bool blocked = !EnemyCanStand(current, next);
-            if (!blocked) { enemyMoveSpent += Mathf.Abs(next - enemy.feet.x); enemy.feet.x = next; }
-            if (blocked || Mathf.Abs(enemy.feet.x - enemyMoveTarget) < 0.01f)
-            {
-                if (enemyMovingAfterAttack) NextTurn();
-                else BeginEnemyAim();
-            }
-        }
-        void PlanEnemy(int index)
-        {
-            Fighter f = fighters[index];
-            FindEnemyShot(index, out f.angle, out f.power);
-            f.angle = Mathf.Clamp(f.angle + Random.Range(-2.8f, 2.8f), 10, 80);
-            f.power = Mathf.Clamp(f.power + Random.Range(-0.8f, 0.8f), 10, 38);
-        }
-        float FindEnemyShot(int index, out float bestAngle, out float bestPower)
-        {
-            float best = float.MaxValue; bestAngle = 48; bestPower = 26;
-            Vector2 target = fighters[0].feet;
-            float targetHeight = ActorHeight * fighters[0].root.localScale.x;
-            for (float angle = 15; angle <= 78; angle += 3)
-                for (float power = 10; power <= 38; power += 0.75f)
-                {
-                    Vector2 p = Origin(index, angle), v = Direction(index, angle) * power;
-                    for (int step = 0; step < 800; step++)
-                    {
-                        Integrate(ref p, ref v);
-                        bool hit = Mathf.Abs(p.x - target.x) <= 0.7f && p.y >= target.y && p.y <= target.y + targetHeight;
-                        if (HitsTerrain(p) || hit || p.x < -6 || p.x > 106 || p.y < -13)
-                        {
-                            float error = hit ? 0 : Vector2.Distance(p, new Vector2(target.x, Mathf.Clamp(p.y, target.y, target.y + targetHeight)));
-                            if (error < best) { best = error; bestAngle = angle; bestPower = power; }
-                            if (hit) return 0;
-                            break;
-                        }
-                    }
-                }
-            return best;
-        }
         void Finish(bool won) { phase = Phase.Finished; message = won ? "승리 · 모든 적을 처치했습니다!" : "패배 · " + fighters[0].name + "가 쓰러졌습니다."; }
         void Restart()
         {
-            for (int i = 0; i < fighters.Count; i++) { fighters[i].hp = fighters[i].maxHp; fighters[i].feet = starts[i]; fighters[i].angle = 48; fighters[i].power = 26; }
+            for (int i = 0; i < fighters.Count; i++) { fighters[i].hp = fighters[i].maxHp; fighters[i].feet = starts[i]; fighters[i].angle = arena.rules.defaultAngle; fighters[i].power = arena.rules.defaultPower; }
             current = 0; round = 1; playerFacing = 1; moveRemaining = MoveLimit; grounded = true; fallSpeed = mouseMove = 0;
             playerHasAttacked = false;
             safePosition = starts[0]; phase = Phase.Aim;
-            arrowProjectile.gameObject.SetActive(false); spearProjectile.gameObject.SetActive(false); burst.gameObject.SetActive(false);
+            arrow.gameObject.SetActive(false); burst.gameObject.SetActive(false);
             accumulator = shotAge = timer = enemyMoveTarget = 0;
             enemyMoveSpent = 0; enemyMovingAfterAttack = hasPlayerImpact = false;
             foreach (Fighter fighter in fighters) ResetFighterAnimation(fighter);

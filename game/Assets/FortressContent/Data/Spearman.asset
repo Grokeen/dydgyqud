@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e5033502a3f446d971fd6cb0ca04796, type: 3}
+  m_Name: Spearman
+  m_EditorClassIdentifier: MiniFortress::MiniFortress.FortressCharacterDefinition
+  displayName: "\uCC3D\uBCD1"
+  description: "\uAC15\uB825\uD55C \uC9C1\uACA9 \xB7 \uB192\uC740 \uC0DD\uC874\uB825"
+  prefab: {fileID: 3385197827137561487, guid: be96cadc471b9cc45abb4e563a33222f, type: 3}
+  portrait: {fileID: 21300000, guid: 922235560f12b584d8cbfe34b9c2c62d, type: 3}
+  projectile: {fileID: 21300000, guid: 6ddcb402442d6294ca2c590ad1311991, type: 3}
+  weapon: 1
+  health: 140
+  damage: 40
+  blastRadius: 1.5
+  movementPerTurn: 10
+  movementSpeed: 5
+  releaseTime: 0.22
+  height: 4.2
+  halfWidth: 0.7
+  shoulderHeight: 2.5
+  muzzleDistance: 1.6

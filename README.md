@@ -4,6 +4,7 @@
 
 ![alt text](image.png)
 - [포트리스 설명](/game/FORTRESS_README.md)
+- [Unity 에디터에서 지형·캐릭터·UI 수정하기](/game/EDITOR_GUIDE.md)
 
 ![alt text](image-2.png)
 - 그래픽 개선

@@ -1,0 +1,7 @@
+﻿{
+ "name": "MiniFortress.EditModeTests",
+ "references": ["MiniFortress", "MiniFortress.Editor", "Unity.ugui"],
+ "includePlatforms": ["Editor"],
+ "optionalUnityReferences": ["TestAssemblies"],
+ "autoReferenced": false
+}

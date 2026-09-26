@@ -4,8 +4,8 @@ namespace MiniFortress
 {
     public sealed partial class FortressGame
     {
-        // These release times match the draw/throw keyframes in the editable attack clips.
-        const float BowReleaseTime = 0.16f, SpearReleaseTime = 0.22f, DeathVisualDuration = 0.9f;
+        // Keep the terminal death pose visible before hiding the fighter.
+        const float DeathVisualDuration = 0.9f;
         static readonly int SpeedParameter = Animator.StringToHash("Speed");
         static readonly int GroundedParameter = Animator.StringToHash("Grounded");
         static readonly int VerticalSpeedParameter = Animator.StringToHash("VerticalSpeed");
@@ -15,24 +15,6 @@ namespace MiniFortress
         static readonly int SpearAttackParameter = Animator.StringToHash("SpearAttack");
         static readonly int HitParameter = Animator.StringToHash("Hit");
         static readonly int IdleState = Animator.StringToHash("Base Layer.Idle");
-        RuntimeAnimatorController fighterController;
-
-        void LoadFighterAnimations()
-        {
-            fighterController = Resources.Load<RuntimeAnimatorController>("FortressAnimation/Fighter");
-            if (fighterController == null)
-                throw new System.InvalidOperationException("Fighter Animator is missing. Run Mini Fortress/Rebuild Character Animations in the Unity Editor.");
-        }
-
-        void InitializeFighterAnimator(Fighter fighter)
-        {
-            fighter.animator = fighter.motion.gameObject.AddComponent<Animator>();
-            fighter.animator.runtimeAnimatorController = fighterController;
-            fighter.animator.applyRootMotion = false;
-            fighter.animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-            fighter.previousFeet = fighter.feet;
-        }
-
         void UpdateFighterAnimation(int index, float dt)
         {
             Fighter fighter = fighters[index];

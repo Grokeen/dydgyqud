@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c1a208e5e6b411f8034319a36b54b00, type: 3}
+  m_Name: BattleRules
+  m_EditorClassIdentifier: MiniFortress::MiniFortress.FortressBattleRules
+  gravity: 12
+  shotStep: 0.0125
+  jumpSpeed: 11
+  jumpCost: 1
+  fallDamage: 15
+  fallRespawnY: -10
+  horizontalLimits: {x: 0, y: 102}
+  projectileLimits:
+    serializedVersion: 2
+    x: -6
+    y: -13
+    width: 112
+    height: 160
+  shotLifetime: 10
+  angleLimits: {x: 10, y: 80}
+  powerLimits: {x: 10, y: 38}
+  defaultAngle: 48
+  defaultPower: 26
+  angleSpeed: 35
+  powerSpeed: 12
+  enemyAngleError: 2.8
+  enemyPowerError: 0.8

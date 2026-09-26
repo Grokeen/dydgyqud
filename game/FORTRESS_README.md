@@ -1,7 +1,9 @@
 # 검은 달의 성채 — 궁수와 창병
 
-Unity에서 `Assets/Scenes/SampleScene.unity`를 열고 Play를 누르세요.
-Game 탭을 클릭하면 키보드로 조작할 수 있습니다. 오브젝트를 수동 연결할 필요는 없습니다.
+Unity에서 `Assets/Scenes/FortressBattle.unity`를 열고 Play를 누르세요.
+Game 탭을 클릭하면 키보드로 조작할 수 있습니다. 기본 씬의 오브젝트 연결은 저장되어 있으며 Inspector에서 편집할 수 있습니다.
+
+**지형·Prefab·능력치·UI 편집 방법은 [Unity 에디터 작업 안내](EDITOR_GUIDE.md)를 참고하세요.**
 
 ## 캐릭터 선택
 
@@ -38,6 +40,7 @@ Game 탭을 클릭하면 키보드로 조작할 수 있습니다. 오브젝트�
 | ← / → | 위력 조절 (10~38) |
 | Space | 착지 상태에서 화살 발사 / 창 투척 |
 | R | 다시 시작 |
+| Tab | 턴 넘기기 |
 
 화면 버튼으로 이동·점프·발사, 슬라이더로 조준할 수도 있습니다.
 자기 턴마다 이동량 10m가 주어집니다. 점프는 1m를 소모합니다.
@@ -56,8 +59,10 @@ Game 탭을 클릭하면 키보드로 조작할 수 있습니다. 오브젝트�
 ## 코드
 
 - `Assets/Fortress/FortressGame.cs`: 이동, 탄도, 충돌, 다수 적 턴, 승패
-- `Assets/Fortress/FortressGame.Visuals.cs`: 일러스트 불러오기, 캐릭터·무기 아틀라스 분리
-- `Assets/Fortress/FortressGame.Hud.cs`: 한글 UI
+- `Assets/Fortress/FortressGame.Visuals.cs`: 캐릭터 Prefab 생성, 직업 선택
+- `Assets/Fortress/FortressHud.cs`: Canvas 기반 한글 UI 갱신
+- `Assets/Fortress/FortressGame.Hud.cs`: UI 상태 조회·명령 인터페이스
+- `Assets/Fortress/FortressGame.Turns.cs` / `.Enemies.cs`: 턴 진행과 적 AI
 - `Assets/Fortress/FortressGame.Animation.cs`: Animator 파라미터, 공격 준비 시간, 피격·사망·재시작 모션 연결
 
 ## 캐릭터 Animator
@@ -79,9 +84,9 @@ Game 탭을 클릭하면 키보드로 조작할 수 있습니다. 오브젝트�
 
 런타임 계층은 캐릭터 루트 아래 `Motion`(Animator), 그 아래 `Body`와 `AimPivot/WeaponMotion`입니다. 애니메이션은 몸체와 무기 외형만 움직이며 이동 좌표, 충돌 범위, 탄도 계산은 기존 전투 코드가 담당합니다. 재시작과 직업 변경 시 모션·색상·투명도가 초기화됩니다.
 
-에셋이 없으면 에디터에서 자동 생성합니다. **Mini Fortress → Rebuild Character Animations** 메뉴는 기본 컨트롤러와 클립을 다시 생성하므로 직접 편집한 애니메이션도 기본값으로 바뀝니다. 기본 공격 클립의 발사 키 시점을 수정할 때는 `FortressGame.Animation.cs`의 `BowReleaseTime` / `SpearReleaseTime`도 함께 맞추세요.
+에셋이 없으면 에디터에서 자동 생성합니다. **Mini Fortress → Rebuild Character Animations** 메뉴는 기본 컨트롤러와 클립을 다시 생성하므로 직접 편집한 애니메이션도 기본값으로 바뀝니다. 기본 공격 클립의 발사 키 시점을 수정할 때는 `Assets/FortressContent/Data`의 캐릭터 에셋에 있는 `Release Time`도 함께 맞추세요.
 
-전장은 생성된 판타지 원화를 사용하며 1920×1080 해상도와 Bilinear 필터로 렌더링합니다. 캐릭터·무기는 투명 PNG 아틀라스에서 분리합니다. 발판 위치와 높이는 배경 원화의 지면에 맞춰 조정했습니다.
+전장은 생성된 판타지 원화를 사용하며 1920×1080 해상도와 Bilinear 필터로 렌더링합니다. 캐릭터·무기는 원본 투명 PNG 아틀라스에서 미리 분리한 Sprite 에셋을 사용합니다. 발판 위치와 높이는 배경 원화의 지면에 맞춰 조정했습니다.
 UI는 가독성을 위해 별도로 표시합니다. 화면 구성은 16:9 기준이며 다른 비율에서는 여백을 둡니다.
 
 ## 적의 전술 판단
@@ -96,6 +101,6 @@ UI는 가독성을 위해 별도로 표시합니다. 화면 구성은 16:9 기�
 플레이어가 턴 넘기기를 누르기 전에는 적이 행동하지 않습니다.
 ## 그래픽 에셋
 
-원화는 Assets/Resources/FortressArt 폴더에 포함되어 실행 시 자동으로 불러옵니다.
+원본 원화는 Assets/Resources/FortressArt 폴더에 보존되어 있습니다. 실제 씬과 Prefab은 Assets/FortressContent/Art의 분리된 Sprite를 참조합니다.
 Assets/Editor/FortressArtImporter.cs가 투명도·필터·텍스처 읽기 설정을 적용합니다.
 원화 생성 방식과 프롬프트는 ART_GENERATION.md에 기록되어 있습니다.
