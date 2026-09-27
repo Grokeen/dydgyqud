@@ -52,7 +52,7 @@ namespace MiniFortress
         Vector2 shotPosition, shotVelocity, safePosition;
         float accumulator, shotAge, timer, moveRemaining, fallSpeed, mouseMove;
         bool grounded = true;
-        bool playerHasAttacked;
+        bool playerHasAttacked, charging;
         int current, round, playerFacing = 1;
         string message;
         Vector3 cameraHome;
@@ -123,14 +123,19 @@ namespace MiniFortress
                 if (!playerHasAttacked)
                 {
                     SetAngle(player.angle + input.Angle * arena.rules.angleSpeed * dt);
-                    SetPower(player.power + input.Power * arena.rules.powerSpeed * dt);
+                    // Holding Space charges power up from the minimum; releasing fires with it.
+                    if (charging) player.power = Mathf.Min(player.power + arena.rules.powerSpeed * dt, arena.rules.powerLimits.y);
                 }
                 if (input.CardHotkey >= 0) PlayCard(input.CardHotkey);
-                if (input.Jump) Jump();
-                if (input.Drop) DropFromBridge();
-                MovePlayer(Mathf.Clamp(mouseMove + input.Move, -1, 1) * player.definition.movementSpeed * dt);
+                if (!charging)
+                {
+                    if (input.Jump) Jump();
+                    if (input.Drop) DropFromBridge();
+                    MovePlayer(Mathf.Clamp(mouseMove + input.Move, -1, 1) * player.definition.movementSpeed * dt);
+                }
                 FallPlayer(dt);
-                if (input.Fire && grounded && phase == Phase.Aim) Fire(0);
+                if (input.Fire) BeginCharge();
+                if (input.FireReleased) ReleaseCharge();
                 if (input.EndTurn) EndPlayerTurn();
             }
             else if (phase == Phase.Attack)
@@ -255,6 +260,17 @@ namespace MiniFortress
             }
             return -1;
         }
+        void BeginCharge()
+        {
+            if (phase != Phase.Aim || current != 0 || !grounded || playerHasAttacked || charging) return;
+            charging = true; mouseMove = 0;
+            fighters[0].power = arena.rules.powerLimits.x;
+        }
+        void ReleaseCharge()
+        {
+            if (!charging) return;
+            charging = false; Fire(0);
+        }
         void Fire(int index)
         {
             if (index == 0)
@@ -315,7 +331,7 @@ namespace MiniFortress
             ClearTrajectoryEffects();
             for (int i = 0; i < fighters.Count; i++) { fighters[i].hp = fighters[i].maxHp; fighters[i].feet = starts[i]; fighters[i].angle = arena.rules.defaultAngle; fighters[i].power = arena.rules.defaultPower; }
             current = 0; round = 1; playerFacing = 1; moveRemaining = MoveLimit; grounded = true; fallSpeed = mouseMove = 0;
-            playerHasAttacked = false;
+            playerHasAttacked = charging = false;
             safePosition = starts[0]; phase = Phase.Aim;
             arrow.gameObject.SetActive(false); burst.gameObject.SetActive(false);
             accumulator = shotAge = timer = enemyMoveTarget = 0;

@@ -4,19 +4,21 @@ namespace MiniFortress
 {
     public sealed partial class FortressGame
     {
-        const int PreviewSteps = 801, FlowLightCount = 8, TrailPointLimit = 64;
-        const float TrailFadeDuration = .45f;
-        readonly Vector3[] previewPoints = new Vector3[PreviewSteps + 1];
+        // The aim guide is a protractor at the shooter: a 0-90 degree arc with ticks, and a needle whose
+        // direction is the angle and whose length is the power. It never shows where the shot will land.
+        const int TrailPointLimit = 64, ArcSegments = 32, TickStep = 10;
+        const float TrailFadeDuration = .45f, ProtractorScale = 1.3f, MinimumNeedle = .25f;
         readonly Vector3[] trailPoints = new Vector3[TrailPointLimit];
-        readonly SpriteRenderer[] flowLights = new SpriteRenderer[FlowLightCount];
-        readonly Vector3[] ringPoints = new Vector3[49];
-        LineRenderer aimLine, aimOutline, landingRing, shotTrail, shotTrailOutline;
+        readonly Vector3[] arcPoints = new Vector3[ArcSegments + 1];
+        readonly Vector3[] linePoints = new Vector3[2];
+        LineRenderer aimLine, aimOutline, powerTrack, protractorArc, shotTrail, shotTrailOutline;
+        LineRenderer[] protractorTicks;
         Material trajectoryMaterial, flowingTrajectoryMaterial;
-        SpriteRenderer shotGlow;
-        int previewCount, trailCount;
-        bool guideVisible, predictedImpact, trailRecording;
+        SpriteRenderer aimTip, shotGlow;
+        int trailCount;
+        bool guideVisible, trailRecording;
         float predictedPeak = float.NegativeInfinity, previewMinimum = float.PositiveInfinity, trailFade;
-        Vector2 predictedPoint;
+        Vector2 needleTip;
         Color trailColor;
         readonly Color trajectoryCyan = new Color(.15f, 1, .97f);
         readonly Color trajectoryGold = new Color(1, .79f, .18f);
@@ -30,18 +32,22 @@ namespace MiniFortress
             flowingTrajectoryMaterial = new Material(shader) { name = "Trajectory flowing light" };
             flowingTrajectoryMaterial.SetFloat("_FlowStrength", 1);
             ownedAssets.Add(trajectoryMaterial); ownedAssets.Add(flowingTrajectoryMaterial);
-            aimOutline = TrajectoryLine("Aim outline", 23, trajectoryMaterial);
-            aimLine = TrajectoryLine("Aim arc", 24, flowingTrajectoryMaterial);
+            protractorArc = TrajectoryLine("Aim protractor", 21, trajectoryMaterial);
+            protractorArc.startColor = protractorArc.endColor = new Color(1, 1, 1, .45f);
+            protractorTicks = new LineRenderer[90 / TickStep + 1];
+            for (int i = 0; i < protractorTicks.Length; i++)
+            {
+                protractorTicks[i] = TrajectoryLine("Protractor tick " + i * TickStep, 21, trajectoryMaterial);
+                protractorTicks[i].startColor = protractorTicks[i].endColor = new Color(1, 1, 1, i * TickStep % 30 == 0 ? .8f : .45f);
+            }
+            powerTrack = TrajectoryLine("Aim power track", 22, trajectoryMaterial);
+            powerTrack.startColor = powerTrack.endColor = new Color(1, 1, 1, .22f);
+            aimOutline = TrajectoryLine("Aim needle outline", 23, trajectoryMaterial);
+            aimLine = TrajectoryLine("Aim needle", 24, flowingTrajectoryMaterial);
             aimLine.colorGradient = TrajectoryGradient(trajectoryCyan, trajectoryGold, .95f, 1);
             aimOutline.startColor = aimOutline.endColor = trajectoryOutline;
-            landingRing = TrajectoryLine("Predicted impact ring", 26, trajectoryMaterial);
-            for (int i = 0; i < flowLights.Length; i++)
-            {
-                Transform light = Shape("Trajectory flow light", Vector2.zero, Vector2.one, Color.white, 25);
-                flowLights[i] = light.GetComponent<SpriteRenderer>();
-                flowLights[i].sprite = arena.effectSprite;
-                light.gameObject.SetActive(false);
-            }
+            Transform tip = Shape("Aim needle tip", Vector2.zero, Vector2.one, Color.white, 25);
+            aimTip = tip.GetComponent<SpriteRenderer>(); aimTip.sprite = arena.effectSprite;
             shotTrailOutline = TrajectoryLine("Projectile trail outline", 27, trajectoryMaterial);
             shotTrail = TrajectoryLine("Projectile luminous trail", 28, trajectoryMaterial);
             Transform glow = Shape("Projectile glow", Vector2.zero, Vector2.one, Color.white, 29);
@@ -78,36 +84,38 @@ namespace MiniFortress
             guideVisible = grounded && ((phase == Phase.Aim && !playerHasAttacked) || (phase == Phase.Attack && current == 0));
             SetGuideVisible(guideVisible);
             if (!guideVisible) return;
-            Vector2 point = Origin(0, fighters[0].angle), velocity = Direction(0, fighters[0].angle) * fighters[0].power;
-            previewCount = 1; previewPoints[0] = point;
-            float age = 0;
-            predictedPeak = previewMinimum = point.y;
-            predictedImpact = false;
-            // Use the very same integration, hit order and lifetime as the real projectile.
-            for (int step = 1; step <= PreviewSteps; step++)
+            var shooter = fighters[0];
+            Vector2 pivot = shooter.feet + Vector2.up * (shooter.definition.shoulderHeight * shooter.root.localScale.x);
+            float radius = Height(shooter) * ProtractorScale;
+            for (int i = 0; i <= ArcSegments; i++) arcPoints[i] = pivot + Direction(0, 90f * i / ArcSegments) * radius;
+            SetLinePoints(protractorArc, arcPoints, arcPoints.Length);
+            for (int i = 0; i < protractorTicks.Length; i++)
             {
-                Integrate(ref point, ref velocity);
-                age += ShotStep;
-                predictedPeak = Mathf.Max(predictedPeak, point.y);
-                previewMinimum = Mathf.Min(previewMinimum, point.y);
-                predictedImpact = HitFighter(point, 0) >= 0 || HitsTerrain(point);
-                bool end = predictedImpact || ShotExpired(point, age) || step == PreviewSteps;
-                if (step % 4 == 0 || end) previewPoints[previewCount++] = point;
-                if (end) break;
+                Vector2 tick = Direction(0, i * TickStep);
+                SetSegment(protractorTicks[i], pivot + tick * radius * (i * TickStep % 30 == 0 ? .78f : .88f), pivot + tick * radius);
             }
-            predictedPoint = point;
-            SetLinePoints(aimLine, previewPoints, previewCount);
-            SetLinePoints(aimOutline, previewPoints, previewCount);
-            landingRing.enabled = predictedImpact;
+            Vector2 aim = Direction(0, shooter.angle);
+            needleTip = pivot + aim * radius * Mathf.Lerp(MinimumNeedle, 1, ChargeFraction);
+            SetSegment(powerTrack, pivot, pivot + aim * radius);
+            SetSegment(aimOutline, pivot, needleTip);
+            SetSegment(aimLine, pivot, needleTip);
+            // Only the protractor needs to stay framed; the camera no longer chases a predicted arc.
+            predictedPeak = pivot.y + radius; previewMinimum = shooter.feet.y;
         }
 
         bool ShotExpired(Vector2 point, float age) => ShotOutside(point) || age > arena.rules.shotLifetime;
 
         void SetGuideVisible(bool visible)
         {
-            aimLine.enabled = aimOutline.enabled = visible;
-            if (!visible) landingRing.enabled = false;
-            foreach (SpriteRenderer light in flowLights) light.gameObject.SetActive(visible);
+            aimLine.enabled = aimOutline.enabled = powerTrack.enabled = protractorArc.enabled = visible;
+            foreach (var tick in protractorTicks) tick.enabled = visible;
+            aimTip.gameObject.SetActive(visible);
+        }
+
+        void SetSegment(LineRenderer line, Vector2 from, Vector2 to)
+        {
+            linePoints[0] = from; linePoints[1] = to;
+            SetLinePoints(line, linePoints, 2);
         }
 
         static void SetLinePoints(LineRenderer line, Vector3[] points, int count)
@@ -143,32 +151,15 @@ namespace MiniFortress
         {
             // Widths are logical screen pixels, so zooming out never makes the arc disappear.
             float unit = worldCamera.orthographicSize * 2 / 900;
-            aimLine.widthMultiplier = 3.5f * unit; aimOutline.widthMultiplier = 7.5f * unit;
-            landingRing.widthMultiplier = 3 * unit;
+            aimLine.widthMultiplier = 4 * unit; aimOutline.widthMultiplier = 8 * unit; powerTrack.widthMultiplier = 4 * unit;
+            protractorArc.widthMultiplier = 2 * unit;
+            foreach (var tick in protractorTicks) tick.widthMultiplier = 2 * unit;
             shotTrail.widthMultiplier = 5 * unit; shotTrailOutline.widthMultiplier = 8 * unit;
-            if (guideVisible && previewCount > 1)
+            if (guideVisible)
             {
-                for (int i = 0; i < flowLights.Length; i++)
-                {
-                    float progress = Mathf.Repeat(time * .32f + i / (float)flowLights.Length, 1);
-                    float sample = progress * (previewCount - 1);
-                    int first = Mathf.Min((int)sample, previewCount - 2);
-                    SpriteRenderer light = flowLights[i];
-                    light.transform.position = Vector3.Lerp(previewPoints[first], previewPoints[first + 1], sample - first);
-                    light.transform.localScale = Vector3.one * (13 * unit);
-                    light.color = Color.Lerp(Color.Lerp(trajectoryCyan, trajectoryGold, progress), Color.white, .7f);
-                }
-                if (predictedImpact)
-                {
-                    float radius = (10 + 2 * Mathf.Sin(time * 5)) * unit;
-                    for (int i = 0; i < ringPoints.Length; i++)
-                    {
-                        float radians = i * Mathf.PI * 2 / (ringPoints.Length - 1);
-                        ringPoints[i] = predictedPoint + new Vector2(Mathf.Cos(radians), Mathf.Sin(radians)) * radius;
-                    }
-                    landingRing.startColor = landingRing.endColor = Color.Lerp(trajectoryGold, Color.white, .25f + .2f * Mathf.Sin(time * 5));
-                    SetLinePoints(landingRing, ringPoints, ringPoints.Length);
-                }
+                aimTip.transform.position = needleTip;
+                aimTip.transform.localScale = Vector3.one * ((12 + 2 * Mathf.Sin(time * 6)) * unit);
+                aimTip.color = Color.Lerp(trajectoryGold, Color.white, .5f);
             }
             if (shotGlow.gameObject.activeSelf)
             {
@@ -225,11 +216,11 @@ namespace MiniFortress
 
         void ClearTrajectoryEffects()
         {
-            guideVisible = false; previewCount = trailCount = 0;
-            predictedImpact = trailRecording = false; trailFade = 0;
+            guideVisible = false; trailCount = 0;
+            trailRecording = false; trailFade = 0;
             predictedPeak = float.NegativeInfinity; previewMinimum = float.PositiveInfinity;
             SetGuideVisible(false);
-            aimLine.positionCount = aimOutline.positionCount = 0;
+            aimLine.positionCount = aimOutline.positionCount = powerTrack.positionCount = 0;
             shotTrail.positionCount = shotTrailOutline.positionCount = 0;
             shotTrail.enabled = shotTrailOutline.enabled = false;
             shotGlow.gameObject.SetActive(false);

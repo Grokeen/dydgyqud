@@ -30,6 +30,7 @@ namespace MiniFortress
         public bool Jump => jump?.WasPressedThisFrame() ?? false;
         public bool Drop => drop?.WasPressedThisFrame() ?? false;
         public bool Fire => fire?.WasPressedThisFrame() ?? false;
+        public bool FireReleased => fire?.WasReleasedThisFrame() ?? false;
         public bool Restart => restart?.WasPressedThisFrame() ?? false;
         public bool Back => back?.WasPressedThisFrame() ?? false;
         public bool Confirm => confirm?.WasPressedThisFrame() ?? false;

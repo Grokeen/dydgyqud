@@ -25,6 +25,16 @@ namespace MiniFortress
         public Text cardStatus;
         public Button[] cardButtons;
         Text[] cardLabels;
+        [Header("Mockup layout (비워 두면 위의 텍스트 카드 방식)")]
+        public FortressCardSlot[] cardSlots;
+        public Text characterDetail, deckText, discardText;
+        public Image characterPortrait;
+        public GameObject settingsPanel;
+        [Header("Gauges")]
+        public Image healthFill, moveFill, powerFill;
+        public Text healthText, moveText;
+
+        public void ToggleSettings() { if (settingsPanel) settingsPanel.SetActive(!settingsPanel.activeSelf); }
 
         public void Bind()
         {
@@ -33,8 +43,8 @@ namespace MiniFortress
             turnTemplate.gameObject.SetActive(false);
             healthTemplate.gameObject.SetActive(false);
             battlefield.texture = game.BattlefieldTexture;
-            angleSlider.minValue = game.Rules.angleLimits.x; angleSlider.maxValue = game.Rules.angleLimits.y;
-            powerSlider.minValue = game.Rules.powerLimits.x; powerSlider.maxValue = game.Rules.powerLimits.y;
+            if (angleSlider) { angleSlider.minValue = game.Rules.angleLimits.x; angleSlider.maxValue = game.Rules.angleLimits.y; }
+            if (powerSlider) { powerSlider.minValue = game.Rules.powerLimits.x; powerSlider.maxValue = game.Rules.powerLimits.y; }
             for (int i = 0; i < game.Classes.Length; i++)
             {
                 var card = Instantiate(classCardTemplate, classCardRoot);
@@ -51,7 +61,7 @@ namespace MiniFortress
 
         void LateUpdate()
         {
-            if (!game || !game.Ready) return;
+            if (!game || !game.Ready || game.FighterCount == 0) return;
             bool selecting = game.IsSelecting;
             selectionPanel.SetActive(selecting); battlePanel.SetActive(!selecting);
             resultPanel.SetActive(game.IsFinished);
@@ -62,14 +72,28 @@ namespace MiniFortress
             }
             var player = game.GetActor(0);
             playerPortrait.sprite = player.portrait;
-            playerStatus.text = $"{player.name}\nHP {player.hp} / {player.maxHp}\n이동 {game.MovementRemaining:0.0} / {game.PlayerMovementLimit:0.#} m";
+            // Gauges take over health and movement; the status text keeps whatever has no gauge.
+            playerStatus.text = healthFill ? player.name : moveFill ? $"{player.name}\nHP {player.hp} / {player.maxHp}"
+                : $"{player.name}\nHP {player.hp} / {player.maxHp}\n이동 {game.MovementRemaining:0.0} / {game.PlayerMovementLimit:0.#} m";
+            if (healthFill) healthFill.fillAmount = player.maxHp > 0 ? player.hp / (float)player.maxHp : 0;
+            if (healthText) healthText.text = $"{player.hp} / {player.maxHp}";
+            if (moveFill) moveFill.fillAmount = game.PlayerMovementLimit > 0 ? game.MovementRemaining / game.PlayerMovementLimit : 0;
+            if (moveText) moveText.text = $"{game.MovementRemaining:0.0} / {game.PlayerMovementLimit:0.#} m";
+            if (powerFill) powerFill.fillAmount = game.ChargeFraction;
+            if (characterPortrait) characterPortrait.sprite = player.portrait;
+            if (characterDetail)
+                characterDetail.text = healthFill
+                    ? $"방어도 {game.Block} · 에너지 {game.CardEnergy} / {game.MaxCardEnergy}\n다음 공격: {game.PendingAttackBuffs}"
+                    : $"{player.name}\nHP {player.hp} / {player.maxHp} · 방어도 {game.Block}\n" +
+                      $"에너지 {game.CardEnergy} / {game.MaxCardEnergy}\n다음 공격: {game.PendingAttackBuffs}";
             turnText.text = $"턴 {game.Round}";
             enemyStatus.text = $"모든 적 처치\n남은 적 {game.LivingEnemies} / {game.FighterCount - 1}명";
             messageText.text = resultText.text = game.Message;
-            attackText.text = game.HasAttacked ? "공격 완료" : game.CurrentAttackName + " [Space]";
-            aimText.text = $"각도 {game.Angle:0}°"; powerText.text = $"위력 {game.Power:0.0}";
-            angleSlider.SetValueWithoutNotify(game.Angle); powerSlider.SetValueWithoutNotify(game.Power);
-            angleSlider.interactable = powerSlider.interactable = game.CanAim;
+            attackText.text = game.HasAttacked ? "공격 완료" : game.IsCharging ? "위력 모으는 중…" : game.CurrentAttackName + " [Space]";
+            aimText.text = $"각도 {game.Angle:0}°";
+            powerText.text = powerFill ? $"{game.ChargeFraction * 100:0}%" : $"위력 {game.Power:0.0}";
+            if (angleSlider) { angleSlider.SetValueWithoutNotify(game.Angle); angleSlider.interactable = game.CanAim; }
+            if (powerSlider) { powerSlider.SetValueWithoutNotify(game.Power); powerSlider.interactable = game.CanAim; }
             fireButton.interactable = game.CanFire; endTurnButton.interactable = game.CanEndTurn;
             jumpButton.interactable = game.CanJump; dropButton.interactable = game.CanEndTurn;
             ShowCards();
@@ -89,7 +113,8 @@ namespace MiniFortress
 
         void BindCards()
         {
-            if (!cardStatus || cardButtons == null || cardButtons.Length == 0) BuildCardPanel();
+            if (cardSlots != null && cardSlots.Length > 0) cardButtons = System.Array.ConvertAll(cardSlots, slot => slot.button);
+            else if (!cardStatus || cardButtons == null || cardButtons.Length == 0) BuildCardPanel();
             cardLabels = new Text[cardButtons.Length];
             for (int i = 0; i < cardButtons.Length; i++)
             {
@@ -135,13 +160,19 @@ namespace MiniFortress
 
         void ShowCards()
         {
-            cardStatus.text = $"에너지 {game.CardEnergy}/{game.MaxCardEnergy} · 덱 {game.DrawPileCount} · 버림 {game.DiscardPileCount}" +
-                $" · 방어도 {game.Block} · 다음 공격: {game.PendingAttackBuffs}";
+            bool piles = deckText && discardText;
+            if (piles) { deckText.text = game.DrawPileCount.ToString(); discardText.text = game.DiscardPileCount.ToString(); }
+            if (cardStatus)
+                cardStatus.text = $"에너지 {game.CardEnergy}/{game.MaxCardEnergy}" +
+                    (piles ? "" : $" · 덱 {game.DrawPileCount} · 버림 {game.DiscardPileCount}") +
+                    $" · 방어도 {game.Block} · 다음 공격: {game.PendingAttackBuffs}";
             for (int i = 0; i < cardButtons.Length; i++)
             {
                 bool has = i < game.HandCount;
                 cardButtons[i].gameObject.SetActive(has);
                 if (!has) continue;
+                if (cardSlots != null && i < cardSlots.Length)
+                { cardSlots[i].Show(game.CardTitle(i), game.CardCost(i), game.CardDescription(i), game.CanPlayCard(i)); continue; }
                 cardLabels[i].text = $"[{i + 1}] {game.CardTitle(i)} ({game.CardCost(i)})\n{game.CardDescription(i)}";
                 cardButtons[i].interactable = game.CanPlayCard(i);
             }

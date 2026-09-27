@@ -24,6 +24,9 @@ namespace MiniFortress
         public bool CanJump => CanEndTurn && moveRemaining >= arena.rules.jumpCost;
         public float MovementRemaining => moveRemaining;
         public float PlayerMovementLimit => MoveLimit;
+        public bool IsCharging => charging;
+        // 0 at the start of a charge, 1 at full power; 0 while not charging.
+        public float ChargeFraction => charging ? Mathf.InverseLerp(Rules.powerLimits.x, Rules.powerLimits.y, fighters[0].power) : 0;
         public float Angle => fighters[0].angle;
         public float Power => fighters[0].power;
         public string Message => message;
@@ -59,6 +62,8 @@ namespace MiniFortress
         { if (phase == Phase.Aim && !playerHasAttacked) fighters[0].power = Mathf.Clamp(value, Rules.powerLimits.x, Rules.powerLimits.y); }
         public void SetMoveInput(float value) => mouseMove = Mathf.Clamp(value, -1, 1);
         public void RequestFire() { if (ready) Fire(0); }
+        public void RequestBeginCharge() { if (ready) BeginCharge(); }
+        public void RequestReleaseCharge() { if (ready) ReleaseCharge(); }
         public void RequestJump() { if (ready) Jump(); }
         public void RequestDrop() { if (ready) DropFromBridge(); }
         public void RequestEndTurn() { if (ready) EndPlayerTurn(); }

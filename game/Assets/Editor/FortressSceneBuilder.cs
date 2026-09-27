@@ -19,6 +19,7 @@ public static class FortressSceneBuilder
     public const string Content = "Assets/FortressContent";
     public const string ScenePath = "Assets/Scenes/FortressBattle.unity";
     static Font font;
+    internal static Font UIFont => font ? font : font = AssetDatabase.LoadAssetAtPath<Font>(Content + "/UI/NotoSansCJKkr-Regular.otf");
     static readonly Color PanelColor = new Color(.025f, .055f, .08f, .96f);
     static readonly Color Gold = new Color(.8f, .65f, .35f);
 
@@ -101,6 +102,9 @@ public static class FortressSceneBuilder
         var game = new GameObject("Battle Controller").AddComponent<FortressGame>();
         var input = game.gameObject.AddComponent<FortressInput>(); input.actions = actions;
         var hud = CreateHud(game);
+        FortressHudLayout.Apply(hud, rules.handSize);
+        FortressHudLayout.ApplyChargeLayout(hud);
+        FortressHudLayout.ApplyHealthGauge(hud);
         hud.battlefield.texture = background.texture;
         var serialized = new SerializedObject(game);
         serialized.FindProperty("arena").objectReferenceValue = arena;
@@ -210,29 +214,29 @@ public static class FortressSceneBuilder
     static void Axis(InputActionMap map,string name,string negative,string positive)
         => map.AddAction(name,InputActionType.Value).AddCompositeBinding("1DAxis").With("Negative","<Keyboard>/"+negative).With("Positive","<Keyboard>/"+positive);
 
-    static RectTransform Rect(Transform parent,string name,float x,float y,float w,float h)
+    internal static RectTransform Rect(Transform parent,string name,float x,float y,float w,float h)
     {
         var rect = new GameObject(name,typeof(RectTransform)).GetComponent<RectTransform>(); rect.SetParent(parent,false);
         rect.anchorMin = rect.anchorMax = new Vector2(0,1); rect.pivot = new Vector2(0,1);
         rect.anchoredPosition = new Vector2(x,-y); rect.sizeDelta = new Vector2(w,h); return rect;
     }
-    static Image Panel(Transform parent,string name,float x,float y,float w,float h)
+    internal static Image Panel(Transform parent,string name,float x,float y,float w,float h)
     {
         var rect = Rect(parent,name,x,y,w,h); var image = rect.gameObject.AddComponent<Image>(); image.color = PanelColor;
         var outline = rect.gameObject.AddComponent<Outline>(); outline.effectColor = Gold; outline.effectDistance = new Vector2(1,-1);
         return image;
     }
-    static Text Label(Transform parent,string name,string text,float x,float y,float w,float h,int size=20)
+    internal static Text Label(Transform parent,string name,string text,float x,float y,float w,float h,int size=20)
     {
-        var label = Rect(parent,name,x,y,w,h).gameObject.AddComponent<Text>(); label.font=font; label.fontSize=size;
+        var label = Rect(parent,name,x,y,w,h).gameObject.AddComponent<Text>(); label.font=UIFont; label.fontSize=size;
         label.text=text; label.color=new Color(.91f,.94f,.94f); label.raycastTarget=false; label.verticalOverflow=VerticalWrapMode.Truncate;
         return label;
     }
-    static Image Picture(Transform parent,string name,float x,float y,float w,float h)
+    internal static Image Picture(Transform parent,string name,float x,float y,float w,float h)
     {
         var image = Rect(parent,name,x,y,w,h).gameObject.AddComponent<Image>(); image.preserveAspect=true; image.raycastTarget=false; return image;
     }
-    static Button Button(Transform parent,string name,string text,float x,float y,float w,float h,UnityAction action)
+    internal static Button Button(Transform parent,string name,string text,float x,float y,float w,float h,UnityAction action)
     {
         var image=Panel(parent,name,x,y,w,h); image.color=new Color(.055f,.18f,.23f);
         var button=image.gameObject.AddComponent<Button>(); button.targetGraphic=image;

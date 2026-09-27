@@ -34,7 +34,7 @@ namespace MiniFortress
         public void OpenSelection()
         {
             if (fighters.Count == 0) return;
-            phase = Phase.Selecting; highlightedClass = playerClass; mouseMove = 0;
+            phase = Phase.Selecting; highlightedClass = playerClass; mouseMove = 0; charging = false;
             arrow.gameObject.SetActive(false); burst.gameObject.SetActive(false);
             foreach (var fighter in fighters) fighter.root.gameObject.SetActive(false);
             ClearTrajectoryEffects();

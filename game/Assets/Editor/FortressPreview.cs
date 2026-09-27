@@ -134,9 +134,16 @@ public sealed class FortressPreview : IDisposable
         hud.resultText.text = "승리 · 모든 적을 처치했습니다!";
         hud.attackText.text = playerData.AttackName + " [Space]";
         hud.aimText.text = $"각도 {arena.rules.defaultAngle:0}°"; hud.powerText.text = $"위력 {arena.rules.defaultPower:0.0}";
-        hud.angleSlider.minValue = arena.rules.angleLimits.x; hud.angleSlider.maxValue = arena.rules.angleLimits.y;
-        hud.powerSlider.minValue = arena.rules.powerLimits.x; hud.powerSlider.maxValue = arena.rules.powerLimits.y;
-        hud.angleSlider.SetValueWithoutNotify(arena.rules.defaultAngle); hud.powerSlider.SetValueWithoutNotify(arena.rules.defaultPower);
+        if (hud.angleSlider)
+        {
+            hud.angleSlider.minValue = arena.rules.angleLimits.x; hud.angleSlider.maxValue = arena.rules.angleLimits.y;
+            hud.angleSlider.SetValueWithoutNotify(arena.rules.defaultAngle);
+        }
+        if (hud.powerSlider)
+        {
+            hud.powerSlider.minValue = arena.rules.powerLimits.x; hud.powerSlider.maxValue = arena.rules.powerLimits.y;
+            hud.powerSlider.SetValueWithoutNotify(arena.rules.defaultPower);
+        }
     }
 
     public Texture Render()

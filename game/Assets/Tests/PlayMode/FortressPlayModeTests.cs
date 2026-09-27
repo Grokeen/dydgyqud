@@ -46,7 +46,7 @@ public sealed class FortressPlayModeTests
             Assert.That(game.GetActor(0).maxHp, Is.EqualTo(game.Classes[role].health));
             Assert.That(game.PlayerMovementLimit, Is.EqualTo(game.Classes[role].movementPerTurn));
             Assert.That(game.CanFire, Is.True);
-            Assert.That(hud.playerStatus.text, Does.Contain(game.Classes[role].health.ToString()));
+            Assert.That((hud.healthText ? hud.healthText : hud.playerStatus).text, Does.Contain(game.Classes[role].health.ToString()));
             game.OpenSelection(); yield return null;
         }
     }
@@ -86,7 +86,8 @@ public sealed class FortressPlayModeTests
         typeof(FortressGame).GetField("shotPosition", Hidden).SetValue(game, Feet(1) + Vector2.up * 2);
         Call("Impact", 1, false);
         Assert.That(before - game.GetActor(1).hp, Is.EqualTo(19));
-        Assert.That(Object.FindAnyObjectByType<FortressHud>().playerStatus.text, Does.Contain("173"));
+        var hud = Object.FindAnyObjectByType<FortressHud>();
+        Assert.That((hud.healthText ? hud.healthText : hud.playerStatus).text, Does.Contain("173"));
         Object.Destroy(edited);
     }
 
@@ -126,8 +127,12 @@ public sealed class FortressPlayModeTests
         var buttons = hud.selectionPanel.GetComponentsInChildren<Button>();
         foreach (var button in buttons) if (button.name == "Begin Battle") button.onClick.Invoke();
         yield return null; Assert.That(game.CanAim, Is.True);
-        hud.angleSlider.value = 35; hud.powerSlider.value = 18;
-        Assert.That(game.Angle, Is.EqualTo(35)); Assert.That(game.Power, Is.EqualTo(18));
+        game.SetAngle(35); Assert.That(game.Angle, Is.EqualTo(35));
+        // Space-style charge: starts at minimum power, fires on release.
+        game.RequestBeginCharge(); Assert.That(game.IsCharging, Is.True); Assert.That(game.ChargeFraction, Is.Zero);
+        yield return new WaitForSeconds(.2f); Assert.That(game.ChargeFraction, Is.GreaterThan(0));
+        game.RequestReleaseCharge(); Assert.That(game.HasAttacked, Is.True); Assert.That(game.IsCharging, Is.False);
+        game.RequestRestart(); yield return null;
         hud.jumpButton.onClick.Invoke(); Assert.That(game.CanFire, Is.False);
         game.RequestRestart();
         for (int i = 1; i < game.FighterCount; i++) SetActor(i, "hp", 0);

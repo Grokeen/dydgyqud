@@ -76,9 +76,12 @@ public static class FortressTerrainPieces
             if (terrain && Owners.ContainsKey(terrain.name) && !PrefabUtility.IsPartOfPrefabInstance(terrain))
                 Undo.DestroyObjectImmediate(terrain.gameObject);
 
+        // Keep the background object and sprite but switch its renderer off, so only the pieces show in the
+        // editor and in play. Tick the Background SpriteRenderer in the Inspector to bring it back.
         var backdrop = ImportBackdrop(sourceImporter);
         Undo.RecordObject(background, "Use terrain backdrop");
         background.sprite = backdrop;
+        background.enabled = false;
         EditorSceneManager.MarkSceneDirty(arena.gameObject.scene);
         return placed;
     }
