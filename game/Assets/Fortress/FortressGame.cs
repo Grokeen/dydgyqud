@@ -25,7 +25,6 @@ namespace MiniFortress
             public FortressCharacterDefinition definition;
             public Vector2 feet;
             public int hp, maxHp;
-            public int armor, maxArmor, bleed;
             public Transform root, weapon, loadedArrow;
             public Transform motion, aimPivot, weaponMotion;
             public Animator animator;
@@ -34,6 +33,7 @@ namespace MiniFortress
             public SpriteRenderer body;
             public string name;
             public float angle = 48, power = 26;
+            public int bleed, weakened;
         }
         struct Platform
         {
@@ -54,8 +54,9 @@ namespace MiniFortress
         float accumulator, shotAge, timer, moveRemaining, fallSpeed, mouseMove;
         bool grounded = true;
         bool playerHasAttacked, charging;
+        // Power of the player's previous shot as 0..1 of the power range; negative until the first shot.
+        float lastPowerFraction = -1;
         int current, round, playerFacing = 1;
-        int arrows, arrowCapacity = 10, shotsRequested = 1, playerTurnsStarted;
         string message;
         Vector3 cameraHome;
         float cameraSize;
@@ -74,8 +75,6 @@ namespace MiniFortress
             pixelFrame.Create(); worldCamera.targetTexture = pixelFrame;
             square = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.one * .5f, 1);
             ownedAssets.Add(square);
-            InitializeMapSelection();
-            ApplyMapPreset(MapPresets[0]);
             LoadArenaLayout();
             AddFighter(arena.playerClasses[0], starts[0], null);
             var spawns = arena.enemySpawns.GetComponentsInChildren<FortressSpawnPoint>();
@@ -167,10 +166,11 @@ namespace MiniFortress
                 timer -= dt;
                 float diameter = fighters[current].definition.blastRadius * 2;
                 burst.localScale = Vector3.one * Mathf.Lerp(diameter, 0.4f, Mathf.Clamp01(timer / 0.55f));
-                if (timer <= 0) ResolveShot();
+                if (timer <= 0 && !VolleyInFlight) ResolveShot();
             }
             else if (phase == Phase.EnemyMove) UpdateEnemyMovement(dt);
             else if (phase == Phase.EnemyAim) { timer -= dt; if (timer <= 0) Fire(current); }
+            if (VolleyInFlight || volleyPuffs.Count > 0) UpdateVolley(dt);
             UpdatePoses(dt);
             UpdateShotTrail(Time.deltaTime);
         }
@@ -244,7 +244,6 @@ namespace MiniFortress
                 f.aimPivot.localRotation = Quaternion.Euler(0, 0, f.angle);
                 f.loadedArrow.gameObject.SetActive(!(i == 0 && playerHasAttacked && phase != Phase.Attack) && !((phase == Phase.Flight || phase == Phase.Impact) && current == i));
             }
-            UpdateFieldObjects();
             UpdateTrajectoryPreview();
         }
         void Integrate(ref Vector2 p, ref Vector2 v)
@@ -282,22 +281,9 @@ namespace MiniFortress
             if (index == 0)
             {
                 if (phase != Phase.Aim || current != 0 || !grounded || playerHasAttacked) return;
-                bool archer = fighters[0].definition.weapon == FortressWeapon.Bow;
-                int launchCount = archer ? Mathf.Min(arrows, Mathf.Max(1, shotsRequested + bonusShots)) : Mathf.Max(1, 1 + bonusShots);
-                if (archer && launchCount <= 0) { message = "화살이 없습니다. 화살 카드를 사용하거나 지형 화살을 회수하세요."; return; }
                 playerHasAttacked = true;
-                if (archer)
-                {
-                    arrows -= launchCount; shotsRequested = Mathf.Clamp(shotsRequested, 1, Mathf.Max(1, arrows));
-                    shotsInCurrentVolley = launchCount; splitAtShot = Mathf.CeilToInt(launchCount / 2f);
-                    activeBleed = nextBleed; activeBleedVolley = nextBleedVolley;
-                    activeRupture = nextRupture; activeArmorBreak = nextArmorBreak;
-                    activeSplitShot = nextSplitShot; activeEvasion = nextEvasion; activeRain = nextRain;
-                    nextBleed = nextBleedVolley = 0;
-                    nextRupture = nextArmorBreak = nextSplitShot = nextEvasion = nextRain = false;
-                    ConsumeAttackBuffs(launchCount);
-                }
-                else ConsumeAttackBuffs(launchCount);
+                lastPowerFraction = Mathf.InverseLerp(arena.rules.powerLimits.x, arena.rules.powerLimits.y, fighters[0].power);
+                ConsumeAttackBuffs();
             }
             else if (phase != Phase.EnemyAim || index != current) return;
             current = index;
@@ -311,10 +297,12 @@ namespace MiniFortress
             int index = current;
             arrow.GetComponent<SpriteRenderer>().sprite = fighters[index].definition.projectile;
             arrow.localScale = Vector3.one * fighters[index].root.localScale.x;
-            float angle = index == 0 ? ArcherShotAngle(volleyIndex) : fighters[index].angle + VolleyAngleOffset(volleyIndex);
-            current = index; shotPosition = index == 0 ? ArcherShotOrigin(angle) : Origin(index, angle);
+            float angle = fighters[index].angle;
+            current = index; shotPosition = Origin(index, angle);
             shotVelocity = Direction(index, angle) * fighters[index].power;
             RollCritical(index);
+            mainShotMods = index == 0 ? NextArrowMods() : null;
+            if (index == 0 && volleyRemaining > 0) QueueVolley();
             shotAge = accumulator = 0; arrow.position = shotPosition;
             arrow.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(shotVelocity.y, shotVelocity.x) * Mathf.Rad2Deg);
             arrow.gameObject.SetActive(true); phase = Phase.Flight;
@@ -325,33 +313,39 @@ namespace MiniFortress
         {
             StopShotTrail();
             if (current == 0 && !miss) { lastPlayerImpact = shotPosition; hasPlayerImpact = true; }
-            if (current == 0 && !miss && (directHit > 0 || HitsTerrain(shotPosition)))
-                PinArrow(shotPosition, directHit > 0 ? directHit : -1, shotVelocity);
-            int ruptureDamage = current == 0 ? ResolveArcherImpact(directHit) : 0;
             arrow.gameObject.SetActive(false); burst.position = shotPosition;
             burst.localScale = Vector3.one * 0.4f; burst.gameObject.SetActive(!miss); int total = 0, blocked = 0;
-            if (!miss)
-                for (int i = 0; i < fighters.Count; i++)
-                {
-                    if (fighters[i].hp <= 0 || (current > 0 && i > 0)) continue;
-                    Fighter f = fighters[i];
-                    Vector2 nearest = new Vector2(f.feet.x, Mathf.Clamp(shotPosition.y, f.feet.y + 0.2f, f.feet.y + 2.9f * f.root.localScale.x));
-                    float distance = Vector2.Distance(shotPosition, nearest);
-                    int maximum = ShotDamage(current);
-                    float radius = fighters[current].definition.blastRadius;
-                    int damage = directHit == i ? maximum : Mathf.RoundToInt(maximum * Mathf.Clamp01(1 - distance / radius));
-                    int armorDamage = Mathf.Min(f.armor, damage);
-                    f.armor -= armorDamage; damage -= armorDamage;
-                    if (directHit == i) damage += ruptureDamage;
-                    if (i == 0 && damage > 0) { int taken = AbsorbWithBlock(damage); blocked += damage - taken; damage = taken; }
-                    f.hp = Mathf.Max(0, f.hp - damage); total += damage;
-                    if (damage > 0) PlayDamageReaction(f);
-                }
-            if (current == 0 && !miss) { FinishArcherImpact(directHit); TryRainArrows(directHit); }
-            else if (current == 0 && volleyIndex == 0) FinishArcherImpact(-1);
+            hitNote = "";
+            if (!miss) total = ApplyBlast(current, shotPosition, directHit, shotCritical, ref blocked, current == 0 ? mainShotMods : null);
             message = total > 0 ? (shotCritical && current == 0 ? "치명타! " : "") + "명중! 피해 " + total : "빗나갔습니다. 각도와 위력을 조절하세요.";
             if (blocked > 0) message += " · 방어도로 " + blocked + " 막음";
+            message += hitNote;
+            if (current == 0 && total == 0) PlayerArrowMissed(shotPosition, shotVelocity, !miss);
             phase = Phase.Impact; timer = 0.55f;
+        }
+        // Direct hit takes full damage, others fall off with distance. Enemy shots only hurt the player.
+        // Player arrows then apply their on-hit effects (bleed ...) to the enemy that took the most damage.
+        int ApplyBlast(int owner, Vector2 at, int directHit, bool critical, ref int blocked, ShotMods mods = null)
+        {
+            int total = 0, target = -1, best = 0;
+            int baseDamage = ShotDamage(owner, critical) + (mods?.extraDamage ?? 0);
+            if (owner > 0) { baseDamage = Mathf.Max(0, baseDamage - fighters[owner].weakened); fighters[owner].weakened = 0; }
+            float radius = fighters[owner].definition.blastRadius;
+            for (int i = 0; i < fighters.Count; i++)
+            {
+                if (fighters[i].hp <= 0 || (owner > 0 && i > 0)) continue;
+                Fighter f = fighters[i];
+                Vector2 nearest = new Vector2(f.feet.x, Mathf.Clamp(at.y, f.feet.y + 0.2f, f.feet.y + 2.9f * f.root.localScale.x));
+                float distance = Vector2.Distance(at, nearest);
+                int maximum = baseDamage + (owner == 0 ? TargetBonus(i, mods) : 0);
+                int damage = directHit == i ? maximum : Mathf.RoundToInt(maximum * Mathf.Clamp01(1 - distance / radius));
+                if (i == 0 && damage > 0) { int taken = AbsorbWithBlock(damage); blocked += damage - taken; damage = taken; }
+                f.hp = Mathf.Max(0, f.hp - damage); total += damage;
+                if (damage > 0) PlayDamageReaction(f);
+                if (i > 0 && damage > best) { best = damage; target = i; }
+            }
+            if (owner == 0 && target > 0) OnPlayerHit(target, mods);
+            return total;
         }
         void Finish(bool won)
         {
@@ -362,9 +356,8 @@ namespace MiniFortress
         void Restart()
         {
             ClearTrajectoryEffects();
+            for (int i = 0; i < fighters.Count; i++) { fighters[i].hp = fighters[i].maxHp; fighters[i].feet = starts[i]; fighters[i].angle = arena.rules.defaultAngle; fighters[i].power = arena.rules.defaultPower; }
             ApplyStageRoster();
-            for (int i = 0; i < fighters.Count; i++) { fighters[i].hp = fighters[i].maxHp; fighters[i].armor = fighters[i].maxArmor; fighters[i].bleed = 0; fighters[i].feet = starts[i]; fighters[i].angle = arena.rules.defaultAngle; fighters[i].power = arena.rules.defaultPower; }
-            // CodexCode: restore armor and bleed with HP, then apply the pulled version stage roster.
             current = 0; round = 1; playerFacing = 1; moveRemaining = MoveLimit; grounded = true; fallSpeed = mouseMove = 0;
             playerHasAttacked = charging = choosingReward = false;
             safePosition = starts[0]; phase = Phase.Aim;

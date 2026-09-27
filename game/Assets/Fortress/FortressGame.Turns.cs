@@ -11,7 +11,6 @@ namespace MiniFortress
             burst.gameObject.SetActive(false);
             if (fighters[0].hp <= 0) { Finish(false); return; }
             if (EnemiesAlive() == 0) { Finish(true); return; }
-            if (TryContinueVolley()) return;
             if (current == 0)
             {
                 phase = Phase.Aim;

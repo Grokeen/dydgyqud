@@ -8,7 +8,6 @@ namespace MiniFortress
         public bool Ready => ready;
         public FortressBattleRules Rules => arena.rules;
         public FortressCharacterDefinition[] Classes => arena.playerClasses;
-        public FortressCardEntry[] CardPool => fighters[0].definition.CardPool;
         public RenderTexture BattlefieldTexture => pixelFrame;
         public Camera WorldCamera => worldCamera;
         public int SelectedClass => highlightedClass;
@@ -31,6 +30,8 @@ namespace MiniFortress
         public bool IsCharging => charging;
         // 0 at the start of a charge, 1 at full power; 0 while not charging.
         public float ChargeFraction => charging ? Mathf.InverseLerp(Rules.powerLimits.x, Rules.powerLimits.y, fighters[0].power) : 0;
+        // Previous shot's power (0..1), kept across turns and stages of a run; -1 before the first shot.
+        public float LastPowerFraction => lastPowerFraction;
         public float Angle => fighters[0].angle;
         public float Power => fighters[0].power;
         public string Message => message;
@@ -38,14 +39,14 @@ namespace MiniFortress
         public struct ActorInfo
         {
             public string name;
-            public int hp, maxHp, armor, bleed;
+            public int hp, maxHp, bleed;
             public Sprite portrait;
             public Vector3 head;
         }
         public ActorInfo GetActor(int index)
         {
             var f = fighters[index];
-            return new ActorInfo { name = f.name, hp = f.hp, maxHp = f.maxHp, armor = f.armor, bleed = f.bleed, portrait = f.definition.portrait,
+            return new ActorInfo { name = f.name, hp = f.hp, maxHp = f.maxHp, bleed = f.bleed, portrait = f.definition.portrait,
                 head = f.feet + Vector2.up * (Height(f) + .45f) };
         }
         public int CardEnergy => energy;
@@ -57,14 +58,19 @@ namespace MiniFortress
         public string PendingAttackBuffs => PendingBuffText();
         public string CardTitle(int index) => hand[index].title;
         public string CardDescription(int index) => hand[index].Description;
-        public Sprite CardArtwork(int index) => fighters[0].definition.weapon == FortressWeapon.Bow ? hand[index].Artwork : null;
-        public int CardCost(int index) => hand[index].cost;
+        public Sprite CardArtwork(int index) => null;
+        public int CardCost(int index) => EffectiveCost(hand[index]);
+        public int BleedThresholdNow => BleedThreshold;
+        public bool UsesArrows => fighters.Count > 0 && fighters[0].definition.weapon == FortressWeapon.Bow;
+        public int ArrowCount => arrows;
+        public int MaxArrowCount => MaxArrows;
+        public int RecoveredArrowsNextTurn => recoveredNext;
+        public int FallenArrowCount => fallenArrows.Count;
         public bool CanPlayCard(int index) => CanPlay(index);
-        public bool CanChangeShotCount => phase == Phase.Aim && !playerHasAttacked && fighters[0].definition.weapon == FortressWeapon.Bow;
         public void RequestPlayCard(int index) { if (ready) PlayCard(index); }
         public void SetAngle(float value)
         { if (phase == Phase.Aim && !playerHasAttacked) fighters[0].angle = Mathf.Clamp(value, Rules.angleLimits.x, Rules.angleLimits.y); }
-        // CodexCode: keep the requested zoom as the camera's resting size so trajectory framing returns to the chosen zoom.
+        // CodexCode: retain the requested camera zoom as its resting size after trajectory framing.
         public void AdjustCameraZoom(float scale, float minimum, float maximum)
         {
             if (!ready || worldCamera == null || !worldCamera.orthographic) return;

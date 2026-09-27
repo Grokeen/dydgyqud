@@ -120,6 +120,7 @@ public sealed class FortressPreview : IDisposable
             var actor = actors[i];
             var turn = Object.Instantiate(hud.turnTemplate, hud.turnRoot); turn.gameObject.SetActive(true);
             turn.Show(actor.data.portrait, actor.name, actor.data.health, actor.data.health, i == 0);
+            if (i == 0) continue; // enemies only, as in play
             var bar = Object.Instantiate(hud.healthTemplate, hud.healthRoot); bar.gameObject.SetActive(true);
             bar.Show(null, $"{actor.data.health}/{actor.data.health}", actor.data.health, actor.data.health, false);
             Vector3 view = world.camera.WorldToViewportPoint(actor.feet + Vector3.up * (actor.height + .45f));

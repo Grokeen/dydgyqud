@@ -24,7 +24,7 @@ namespace MiniFortress
             view.name = string.IsNullOrWhiteSpace(displayName) ? definition.displayName : displayName;
             return new Fighter {
                 definition = definition, name = view.name, feet = feet, previousFeet = feet,
-                hp = definition.health, maxHp = definition.health, armor = definition.armor, maxArmor = definition.armor, root = view.transform,
+                hp = definition.health, maxHp = definition.health, root = view.transform,
                 motion = view.motion, aimPivot = view.aimPivot, weaponMotion = view.weaponMotion,
                 weapon = view.weapon, loadedArrow = view.loadedProjectile, body = view.body, animator = view.animator
             };
@@ -49,7 +49,7 @@ namespace MiniFortress
             playerClass = highlightedClass;
             var previous = fighters[0].root.gameObject; previous.SetActive(false); Destroy(previous);
             fighters[0] = CreateFighter(arena.playerClasses[playerClass], starts[0], null);
-            StartRun(); Restart();
+            StartRun(); lastPowerFraction = -1; Restart();
             if (EnemiesAlive() == 0) Finish(true);
         }
     }
