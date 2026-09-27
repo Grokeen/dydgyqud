@@ -48,7 +48,9 @@ public static class FortressHudLayout
     static bool NeedsMockup(FortressHud hud) => hud.cardSlots == null || hud.cardSlots.Length == 0;
     static bool NeedsChargeLayout(FortressHud hud) => hud.angleSlider || hud.powerSlider;
     static bool NeedsHealthGauge(FortressHud hud) => !hud.healthFill;
-    static bool NeedsAnyStep(FortressHud hud) => NeedsMockup(hud) || NeedsChargeLayout(hud) || NeedsHealthGauge(hud);
+    static bool NeedsRewardPanel(FortressHud hud) => !hud.rewardPanel;
+    static bool NeedsAnyStep(FortressHud hud) =>
+        NeedsMockup(hud) || NeedsChargeLayout(hud) || NeedsHealthGauge(hud) || NeedsRewardPanel(hud);
 
     [MenuItem("Mini Fortress/HUD 목업 레이아웃 적용")]
     static void ApplyMenu()
@@ -62,6 +64,7 @@ public static class FortressHudLayout
         if (NeedsMockup(hud)) Apply(hud, arena && arena.rules ? arena.rules.handSize : 5);
         if (NeedsChargeLayout(hud)) ApplyChargeLayout(hud);
         if (NeedsHealthGauge(hud)) ApplyHealthGauge(hud);
+        if (NeedsRewardPanel(hud)) ApplyRewardPanel(hud);
         EditorSceneManager.MarkSceneDirty(hud.gameObject.scene);
         Debug.Log("HUD 레이아웃을 적용했습니다. Ctrl+Z로 되돌리거나 씬을 저장하세요.", hud);
     }
@@ -98,6 +101,30 @@ public static class FortressHudLayout
             Place((RectTransform)help.transform, 10, 248, 424, 20);
             help.text = "A/D 이동 · W 점프 · S 내려가기 · ↑↓ 각도 · Space 길게 눌러 발사 · Tab 턴 종료"; help.fontSize = 12;
         }
+        EditorUtility.SetDirty(hud);
+    }
+
+    // Stage clear screen: three reward cards (outlined by rarity) and a skip button, above everything else.
+    public static void ApplyRewardPanel(FortressHud hud)
+    {
+        var panel = B.Panel(hud.battlePanel.transform, "Stage Reward", 400, 170, 800, 480);
+        Created(panel.gameObject);
+        hud.rewardPanel = panel.gameObject;
+        hud.rewardTitle = B.Label(panel.transform, "Title", "스테이지 1 클리어!", 0, 20, 800, 50, 32);
+        hud.rewardTitle.alignment = TextAnchor.MiddleCenter;
+        var subtitle = B.Label(panel.transform, "Subtitle", "덱에 추가할 카드를 고르세요 · 1 / 2 / 3 · 4 건너뛰기", 0, 74, 800, 30, 18);
+        subtitle.alignment = TextAnchor.MiddleCenter;
+        var cards = B.Rect(panel.transform, "Reward Cards", 55, 116, 690, 270);
+        hud.rewardSlots = new FortressCardSlot[3];
+        for (int i = 0; i < hud.rewardSlots.Length; i++)
+        {
+            var slot = hud.rewardSlots[i] = Card(cards, i, i * 245, 200, 270);
+            slot.name = "Reward " + (i + 1);
+            slot.GetComponent<Outline>().effectDistance = new Vector2(3, -3);
+        }
+        hud.rewardSkipButton = B.Button(panel.transform, "Skip", "건너뛰기 [4]", 290, 408, 220, 50, null);
+        panel.gameObject.SetActive(false);
+        panel.transform.SetAsLastSibling();
         EditorUtility.SetDirty(hud);
     }
 

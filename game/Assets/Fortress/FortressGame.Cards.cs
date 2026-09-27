@@ -8,20 +8,21 @@ namespace MiniFortress
         readonly List<FortressCardEntry> drawPile = new List<FortressCardEntry>();
         readonly List<FortressCardEntry> discardPile = new List<FortressCardEntry>();
         readonly List<FortressCardEntry> hand = new List<FortressCardEntry>();
-        int energy, block;
+        int energy, block, battleDamage;
         // Banked by cards until the player's next attack.
         int bonusShots, bonusDamage, bonusCritical;
         // Locked in when the player attacks and used by every projectile of that volley.
         int volleyRemaining, volleyIndex, shotDamageBonus, shotCriticalChance;
         bool shotCritical;
 
+        // Every battle starts from the run deck, so reward cards picked in earlier stages are included.
         void BuildDeck()
         {
+            if (runDeck.Count == 0) StartRun();
             drawPile.Clear(); discardPile.Clear(); hand.Clear();
-            foreach (var card in fighters[0].definition.Deck)
-                if (card != null) for (int i = 0; i < card.copies; i++) drawPile.Add(card);
+            drawPile.AddRange(runDeck);
             Shuffle(drawPile);
-            block = bonusShots = bonusDamage = bonusCritical = 0;
+            block = battleDamage = bonusShots = bonusDamage = bonusCritical = 0;
             volleyRemaining = volleyIndex = shotDamageBonus = shotCriticalChance = 0; shotCritical = false;
         }
         static void Shuffle(List<FortressCardEntry> cards)
@@ -32,7 +33,12 @@ namespace MiniFortress
         {
             discardPile.AddRange(hand); hand.Clear();
             energy = arena.rules.cardEnergy; block = 0;
-            for (int i = 0; i < arena.rules.handSize; i++)
+            DrawCards(arena.rules.handSize);
+        }
+        // An empty draw pile reshuffles the discard pile back in; the hand never exceeds maxHandSize.
+        void DrawCards(int count)
+        {
+            for (int i = 0; i < count && hand.Count < arena.rules.maxHandSize; i++)
             {
                 if (drawPile.Count == 0) { drawPile.AddRange(discardPile); discardPile.Clear(); Shuffle(drawPile); }
                 if (drawPile.Count == 0) break;
@@ -56,6 +62,8 @@ namespace MiniFortress
                 case FortressCardEffect.Defense: block += card.value; break;
                 case FortressCardEffect.ShotDamage: bonusDamage += card.value; break;
                 case FortressCardEffect.CriticalChance: bonusCritical += card.value; break;
+                case FortressCardEffect.Draw: DrawCards(card.value); break;
+                case FortressCardEffect.BattleDamage: battleDamage += card.value; break;
             }
             message = $"카드 사용 · {card.title}: {card.Description}";
         }
@@ -78,7 +86,7 @@ namespace MiniFortress
         void RollCritical(int index) => shotCritical = index == 0 && Random.Range(0, 100) < shotCriticalChance;
         int ShotDamage(int index)
         {
-            int damage = fighters[index].definition.damage + (index == 0 ? shotDamageBonus : 0);
+            int damage = fighters[index].definition.damage + (index == 0 ? shotDamageBonus + battleDamage : 0);
             return shotCritical && index == 0 ? Mathf.RoundToInt(damage * arena.rules.criticalMultiplier) : damage;
         }
         int AbsorbWithBlock(int damage)

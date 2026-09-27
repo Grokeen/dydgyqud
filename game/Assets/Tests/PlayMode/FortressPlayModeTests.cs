@@ -137,12 +137,56 @@ public sealed class FortressPlayModeTests
         game.RequestRestart();
         for (int i = 1; i < game.FighterCount; i++) SetActor(i, "hp", 0);
         Call("ResolveShot"); yield return null;
-        Assert.That(game.IsFinished, Is.True); Assert.That(hud.resultPanel.activeSelf, Is.True);
+        Assert.That(game.IsFinished, Is.True); Assert.That(hud.rewardPanel.activeSelf, Is.True);
         game.RequestRestart(); SetActor(0, "hp", 0); Call("ResolveShot"); yield return null;
         Assert.That(game.IsFinished, Is.True); Assert.That(game.Message, Does.Contain("패배"));
     }
 
     void SetField(string name, object value) => typeof(FortressGame).GetField(name, Hidden).SetValue(game, value);
+
+    [UnityTest]
+    public IEnumerator EarlyStagesFieldOnlyTheWeakestEnemies()
+    {
+        game.BeginBattle(); yield return null;
+        Assert.That(game.EnemyCount, Is.EqualTo(game.Rules.earlyStageEnemies));
+        Assert.That(game.LivingEnemies, Is.EqualTo(game.EnemyCount));
+        int weakest = int.MaxValue, strongestPresent = 0;
+        for (int i = 1; i < game.FighterCount; i++)
+        {
+            int health = game.GetActor(i).maxHp;
+            if (game.IsPresent(i)) strongestPresent = Mathf.Max(strongestPresent, health);
+            else weakest = Mathf.Min(weakest, health);
+        }
+        Assert.That(strongestPresent, Is.LessThanOrEqualTo(weakest));
+        SetField("stage", game.Rules.earlyStages + 1); game.RequestRestart(); yield return null;
+        Assert.That(game.EnemyCount, Is.EqualTo(game.FighterCount - 1));
+    }
+
+    [UnityTest]
+    public IEnumerator WinningOffersRewardThatJoinsNextStageDeck()
+    {
+        game.BeginBattle(); yield return null;
+        int deck = game.DeckSize;
+        Assert.That(game.Stage, Is.EqualTo(1));
+        for (int i = 1; i < game.FighterCount; i++) SetActor(i, "hp", 0);
+        Call("ResolveShot"); yield return null;
+        Assert.That(game.IsFinished, Is.True); Assert.That(game.IsChoosingReward, Is.True);
+        Assert.That(game.RewardCount, Is.InRange(1, 3));
+        for (int i = 0; i < game.RewardCount; i++) Assert.That(game.RewardRarity(i), Is.Not.EqualTo(FortressCardRarity.Legend));
+        var hud = Object.FindAnyObjectByType<FortressHud>();
+        Assert.That(hud.rewardPanel.activeSelf, Is.True); Assert.That(hud.resultPanel.activeSelf, Is.False);
+        hud.rewardSlots[0].button.onClick.Invoke(); yield return null;
+        Assert.That(hud.rewardPanel.activeSelf, Is.False);
+        Assert.That(game.Stage, Is.EqualTo(2)); Assert.That(game.IsFinished, Is.False);
+        Assert.That(game.DeckSize, Is.EqualTo(deck + 1));
+        Assert.That(game.HandCount + game.DrawPileCount, Is.EqualTo(deck + 1));
+        Assert.That(game.LivingEnemies, Is.EqualTo(game.EnemyCount));
+        // Retrying a stage keeps the grown deck; picking a class again starts a fresh run.
+        game.RequestRestart(); yield return null;
+        Assert.That(game.Stage, Is.EqualTo(2)); Assert.That(game.DeckSize, Is.EqualTo(deck + 1));
+        game.OpenSelection(); game.BeginBattle(); yield return null;
+        Assert.That(game.Stage, Is.EqualTo(1)); Assert.That(game.DeckSize, Is.EqualTo(deck));
+    }
 
     [UnityTest]
     public IEnumerator CardsSpendEnergyBlockDamageAndBuffNextAttack()
@@ -191,7 +235,10 @@ public sealed class FortressPlayModeTests
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.Space)); yield return null; yield return null;
             Assert.That(game.HasAttacked, Is.False);
             InputSystem.QueueStateEvent(keyboard, new KeyboardState()); yield return null;
+            // Holding the fire key charges; releasing it fires.
             InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.F)); yield return null; yield return null;
+            Assert.That(game.IsCharging, Is.True); Assert.That(game.HasAttacked, Is.False);
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState()); yield return null; yield return null;
             Assert.That(game.HasAttacked, Is.True);
         }
         finally

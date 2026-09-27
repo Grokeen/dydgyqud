@@ -30,6 +30,12 @@ namespace MiniFortress
         public Text characterDetail, deckText, discardText;
         public Image characterPortrait;
         public GameObject settingsPanel;
+        [Header("Stage reward (비워 두면 결과 패널에 글자로 표시)")]
+        public GameObject rewardPanel;
+        public Text rewardTitle;
+        public FortressCardSlot[] rewardSlots;
+        public Button rewardSkipButton;
+        public Color[] rarityColors = { new Color(.62f, .66f, .7f), new Color(.3f, .6f, 1), new Color(.72f, .4f, 1), new Color(1, .78f, .25f) };
         [Header("Gauges")]
         public Image healthFill, moveFill, powerFill;
         public Text healthText, moveText;
@@ -38,7 +44,7 @@ namespace MiniFortress
 
         public void Bind()
         {
-            BindCards();
+            BindCards(); BindRewards();
             classCardTemplate.gameObject.SetActive(false);
             turnTemplate.gameObject.SetActive(false);
             healthTemplate.gameObject.SetActive(false);
@@ -64,7 +70,10 @@ namespace MiniFortress
             if (!game || !game.Ready || game.FighterCount == 0) return;
             bool selecting = game.IsSelecting;
             selectionPanel.SetActive(selecting); battlePanel.SetActive(!selecting);
-            resultPanel.SetActive(game.IsFinished);
+            bool rewardScreen = rewardPanel && game.IsChoosingReward;
+            if (rewardPanel) rewardPanel.SetActive(rewardScreen);
+            resultPanel.SetActive(game.IsFinished && !rewardScreen);
+            if (rewardScreen) ShowRewards();
             if (selecting)
             {
                 for (int i = 0; i < cards.Count; i++) cards[i].Show(game.Classes[i], game.SelectedClass == i);
@@ -87,7 +96,7 @@ namespace MiniFortress
                     : $"{player.name}\nHP {player.hp} / {player.maxHp} · 방어도 {game.Block}\n" +
                       $"에너지 {game.CardEnergy} / {game.MaxCardEnergy}\n다음 공격: {game.PendingAttackBuffs}";
             turnText.text = $"턴 {game.Round}";
-            enemyStatus.text = $"모든 적 처치\n남은 적 {game.LivingEnemies} / {game.FighterCount - 1}명";
+            enemyStatus.text = $"스테이지 {game.Stage} · 모든 적 처치\n남은 적 {game.LivingEnemies} / {game.EnemyCount}명";
             messageText.text = resultText.text = game.Message;
             attackText.text = game.HasAttacked ? "공격 완료" : game.IsCharging ? "위력 모으는 중…" : game.CurrentAttackName + " [Space]";
             aimText.text = $"각도 {game.Angle:0}°";
@@ -100,6 +109,7 @@ namespace MiniFortress
             for (int i = 0; i < turns.Count; i++)
             {
                 var actor = game.GetActor(i);
+                turns[i].gameObject.SetActive(game.IsPresent(i));
                 turns[i].Show(actor.portrait, actor.hp > 0 ? actor.name : "처치", actor.hp, actor.maxHp, game.CurrentActor == i && !game.IsFinished);
                 var bar = healthBars[i];
                 Vector3 view = game.WorldCamera.WorldToViewportPoint(actor.head);
@@ -108,6 +118,33 @@ namespace MiniFortress
                 rect.pivot = new Vector2(.5f, 0);
                 rect.anchorMin = rect.anchorMax = new Vector2(view.x, view.y); rect.anchoredPosition = Vector2.zero;
                 bar.Show(null, $"{actor.hp}/{actor.maxHp}", actor.hp, actor.maxHp, false);
+            }
+        }
+
+        void BindRewards()
+        {
+            if (!rewardPanel) return;
+            for (int i = 0; i < rewardSlots.Length; i++)
+            {
+                int choice = i;
+                rewardSlots[i].button.onClick.AddListener(() => game.RequestChooseReward(choice));
+            }
+            if (rewardSkipButton) rewardSkipButton.onClick.AddListener(game.RequestSkipReward);
+        }
+
+        void ShowRewards()
+        {
+            if (rewardTitle) rewardTitle.text = $"스테이지 {game.Stage} 클리어!";
+            for (int i = 0; i < rewardSlots.Length; i++)
+            {
+                var slot = rewardSlots[i];
+                bool has = i < game.RewardCount;
+                slot.gameObject.SetActive(has);
+                if (!has) continue;
+                slot.Show(game.RewardTitle(i), game.RewardCost(i), game.RewardDescription(i), true);
+                var outline = slot.GetComponent<Outline>();
+                int rarity = (int)game.RewardRarity(i);
+                if (outline && rarity < rarityColors.Length) outline.effectColor = rarityColors[rarity];
             }
         }
 

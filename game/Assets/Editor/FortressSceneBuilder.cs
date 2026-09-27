@@ -105,6 +105,7 @@ public static class FortressSceneBuilder
         FortressHudLayout.Apply(hud, rules.handSize);
         FortressHudLayout.ApplyChargeLayout(hud);
         FortressHudLayout.ApplyHealthGauge(hud);
+        FortressHudLayout.ApplyRewardPanel(hud);
         hud.battlefield.texture = background.texture;
         var serialized = new SerializedObject(game);
         serialized.FindProperty("arena").objectReferenceValue = arena;
