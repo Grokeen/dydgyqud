@@ -91,6 +91,7 @@ namespace MiniFortress
         FortressSpawnPoint[] mapEnemySpawns;
         Transform[] mapPlatformVisuals, mapPlatformTopVisuals;
         Transform[] spawnShadows, spawnFootprints;
+        Sprite[] mapPreviewCache;
         int selectedMap;
 
         static Rect PlatformRect(float left, float right, float top, float bottom)
@@ -100,6 +101,25 @@ namespace MiniFortress
         public int SelectedMap => selectedMap;
         public string MapName(int index) => MapPresets[index].name;
         public string MapDescription(int index) => MapPresets[index].description;
+
+        public Sprite MapPreviewSprite(int index)
+        {
+            if (index < 0 || index >= MapPresets.Length) return null;
+            if (mapPreviewCache == null) mapPreviewCache = new Sprite[MapPresets.Length];
+            if (mapPreviewCache[index]) return mapPreviewCache[index];
+
+            string resource = MapPresets[index].backgroundResource;
+            mapPreviewCache[index] = Resources.Load<Sprite>(resource);
+            if (mapPreviewCache[index]) return mapPreviewCache[index];
+
+            // CodexCode: the restored Citadel background imports as Texture2D, so wrap it for both the HUD and battlefield.
+            Texture2D texture = Resources.Load<Texture2D>(resource);
+            if (!texture) return null;
+            var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 100f);
+            ownedAssets.Add(sprite);
+            mapPreviewCache[index] = sprite;
+            return sprite;
+        }
 
         void InitializeMapSelection()
         {
@@ -184,7 +204,8 @@ namespace MiniFortress
                 if (i < preset.enemyNames.Length) mapEnemySpawns[i].displayName = preset.enemyNames[i];
             }
 
-            Sprite mapBackground = Resources.Load<Sprite>(preset.backgroundResource);
+            int presetIndex = System.Array.IndexOf(MapPresets, preset);
+            Sprite mapBackground = MapPreviewSprite(presetIndex);
             if (mapBackground)
             {
                 arena.background.sprite = mapBackground;

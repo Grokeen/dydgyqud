@@ -103,12 +103,9 @@ namespace MiniFortress
         // 씬 런타임 초기화(Bind)에서 지연 로드하고, 누락된 리소스는 카드의 기본 배경으로 표시합니다.
         void LoadMapPreviewSprites()
         {
-            mapPreviewSprites = new[]
-            {
-                Resources.Load<Sprite>("FortressMapPreviews/MoonlitFortress"),
-                Resources.Load<Sprite>("FortressMapPreviews/MoonlitRavine"),
-                Resources.Load<Sprite>("FortressMapPreviews/BrokenRamparts")
-            };
+            // CodexCode: take each thumbnail from its map preset so the restored original battlefield is included too.
+            mapPreviewSprites = new Sprite[game.MapCount];
+            for (int i = 0; i < mapPreviewSprites.Length; i++) mapPreviewSprites[i] = game.MapPreviewSprite(i);
         }
 
         // 코덱스code(CodexCode): 궁수 본사격의 발사량을 1발 단위로 정하는 UI입니다. 소모량과 실제 화살 발사는 FortressGame이 처리합니다.
@@ -173,7 +170,11 @@ namespace MiniFortress
             MenuFeature(frame, "03", "요새 수호", "움직이고 버티며 적을 격파", 656);
             MenuLabel(frame, "Map Heading", "전장을 선택하세요", 120, 474, 760, 30, 18,
                 new Color(.82f, .72f, .5f), FontStyle.Bold);
-            for (int i = 0; i < game.MapCount; i++) CreateMapChoice(frame, i, 104 + i * 266, 508, 258, 192);
+            float mapGap = 12;
+            float mapWidth = (920 - mapGap * (game.MapCount - 1)) / game.MapCount;
+            float mapStart = (1000 - (mapWidth * game.MapCount + mapGap * (game.MapCount - 1))) * .5f;
+            for (int i = 0; i < game.MapCount; i++)
+                CreateMapChoice(frame, i, mapStart + i * (mapWidth + mapGap), 508, mapWidth, 192);
             CreateMenuButton(frame, "출전 준비", 340, 710, 320, 58);
             MenuLabel(frame, "Footer", "맵과 캐릭터를 선택하고 전투를 시작하세요", 180, 778, 640, 26, 15,
                 new Color(.56f, .64f, .66f), FontStyle.Normal);
