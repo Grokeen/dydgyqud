@@ -83,3 +83,6 @@ pull로 들어온 전투 구조가 기존 궁수 카드 모듈과 겹쳐 컴파�
 
 ## 2026-09-27 23:05:00 (KST) · 코덱스code(CodexCode)
 현재 pull 병합본을 Unity 프로젝트의 SDK로 직접 컴파일해 발견된 잔여 충돌 참조를 수정했습니다. 구 버전 궁수의 회피/덫/턴 출혈 참조가 남아 있던 FortressGame.Turns.cs와 FortressGame.Enemies.cs, pull 카드 모델과 어긋난 FortressCharacterDefinition.cs를 origin/main 구현에 맞췄습니다. Unity 자동 생성 IDE 프로젝트의 오래된 궁수 파일 경로를 위한 빈 partial 호환 파일을 두고, 분리된 pull 스크립트(Arrows/Bleed/Volley)를 컴파일 대상에 포함해 Assembly-CSharp 빌드 오류 0건을 확인했습니다. 편집기 쪽 기존 경고 12건은 남아 있으며 Play Mode는 실행하지 않았습니다. vscode 작업 기록 규칙을 적용했습니다.
+
+## 2026-09-27 23:15:00 (KST) · 코덱스code(CodexCode)
+push 요청 전에 원격 main의 후속 커밋(화살 발사 규칙 변경)을 확인해 로컬 변경과 병합했습니다. 충돌한 FortressBattleRules에는 연사 각도 설정을 보존하고 원격 카드/화살/Volley 로직 변경을 함께 반영했습니다. Unity SDK로 Assembly-CSharp 프로젝트를 다시 빌드해 컴파일 오류 0건을 확인했습니다(편집기 경고 12건). Play Mode는 실행하지 않았습니다. vscode 작업 기록 규칙을 적용했습니다.

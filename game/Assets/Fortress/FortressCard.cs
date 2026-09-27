@@ -129,11 +129,12 @@ namespace MiniFortress
                 new FortressCardEntry("화살 회수", FortressCardEffect.RecallLastTurn, 1, 3, FortressCardRarity.Hero, "다음 화살이 발사될 때 전 턴에 발사한 화살을 회수하여 추가로 발사합니다."),
                 new FortressCardEntry("화살통", FortressCardEffect.MaxArrows, 3, 1, FortressCardRarity.Hero, "최대 화살 수가 3발 증가합니다."),
                 new FortressCardEntry("전장 회수", FortressCardEffect.RecallAll, 1, 3, FortressCardRarity.Hero, "다음 화살이 발사될 때 지금까지 빗나간 화살을 회수하여 추가로 발사합니다."),
-                new FortressCardEntry("넘치는 화살", FortressCardEffect.Overflow, 5, 3, FortressCardRarity.Hero, "[소모] 현재 화살이 최대치를 초과했다면 다음 화살의 데미지가 초과한 화살 1발당 5 증가합니다.", 0, true),
-                new FortressCardEntry("화살 저장", FortressCardEffect.StoreArrows, 1, 1, FortressCardRarity.Hero, "최대치 이상 화살 보유한 수만큼 다음 화살에 추가"),
                 new FortressCardEntry("화살 폭풍", FortressCardEffect.ArrowStorm, 3, 3, FortressCardRarity.Hero, "다음 화살이 발사될 때 현재 화살의 절반을 추가로 발사합니다. 추가 화살의 데미지가 3 증가합니다."),
                 new FortressCardEntry("회수 전문가", FortressCardEffect.RecoveryExpert, 2, 2, FortressCardRarity.Hero, "이번 전투에서 회수한 화살 1발마다 다음 화살의 데미지가 2 증가합니다."),
                 new FortressCardEntry("마지막 화살", FortressCardEffect.LastArrow, 5, 1, FortressCardRarity.Hero, "[소모] 화살이 1발 남아 있다면 다음 화살의 데미지가 5배 증가합니다.", 0, true),
+                // "최대치 초과" = arrows beyond the base cap of 10, once max-arrow cards have raised the cap.
+                new FortressCardEntry("넘치는 화살", FortressCardEffect.Overflow, 5, 3, FortressCardRarity.Hero, "[소모] 현재 화살이 최대치를 초과했다면 다음 화살의 데미지가 초과한 화살 1발당 5 증가합니다.", 0, true),
+                new FortressCardEntry("화살 저장", FortressCardEffect.StoreArrows, 1, 1, FortressCardRarity.Hero, "최대치 이상 화살 보유한 수만큼 다음 화살에 추가"),
                 new FortressCardEntry("화살 비축", FortressCardEffect.Stockpile, 5, 2, FortressCardRarity.Hero, "최대치 이상 추가된 화살만큼 데미지 +5 추가합니다.") };
     }
 }

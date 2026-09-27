@@ -3,8 +3,8 @@ using UnityEngine;
 
 namespace MiniFortress
 {
-    // Extra arrows from multi-shot cards leave right behind the first one (volleyInterval apart) and fly at the
-    // same time, instead of each waiting for the previous arrow to land. The turn resolves once all have landed.
+    // Extra arrows leave right behind the first one at the same angle and power (volleyInterval apart) and fly
+    // at the same time, instead of each waiting for the previous arrow to land. The turn resolves once all land.
     public sealed partial class FortressGame
     {
         sealed class VolleyArrow
@@ -24,7 +24,7 @@ namespace MiniFortress
         void QueueVolley()
         {
             for (int shot = 1; shot <= volleyRemaining; shot++)
-                volleyArrows.Add(new VolleyArrow { angle = fighters[0].angle + VolleyAngleOffset(shot), delay = shot * arena.rules.volleyInterval });
+                volleyArrows.Add(new VolleyArrow { angle = fighters[0].angle, delay = shot * arena.rules.volleyInterval });
             volleyRemaining = 0;
         }
 
