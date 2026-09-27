@@ -29,7 +29,9 @@ namespace MiniFortress
         [Min(0)] public float rareChance = 25;
         [Min(0)] public float heroChance = 10;
         [Header("Arrows (궁수)")]
-        [Tooltip("매 턴 채워지는 기본 최대 화살 수. 공격 한 번에 가진 화살을 모두 쏩니다.")]
+        [Tooltip("매 턴 시작 화살 수. 공격 한 번에 가진 화살을 모두 연속으로 쏩니다.")]
+        [Min(1)] public int baseArrows = 1;
+        [Tooltip("화살 수 상한. 카드로 추가해도 이 수를 넘지 않습니다(최대치 증가 카드로만 늘어남).")]
         [Min(1)] public int baseMaxArrows = 10;
         [Header("Bleed")]
         [Tooltip("출혈이 이만큼 쌓이면 폭발합니다.")]
@@ -43,9 +45,7 @@ namespace MiniFortress
         [Tooltip("카드를 추가로 뽑을 때 손패가 이 수를 넘지 않습니다.")]
         [Min(1)] public int maxHandSize = 8;
         [Min(1)] public float criticalMultiplier = 2;
-        [Tooltip("연사 시 다음 화살이 뒤따라 발사되는 간격(초)")]
+        [Tooltip("연사 시 다음 화살이 같은 각도로 뒤따라 발사되는 간격(초)")]
         [Min(0)] public float volleyInterval = .12f;
-        [Tooltip("연사 시 화살마다 벌어지는 각도")]
-        [Min(0)] public float volleySpread = 2.5f;
     }
 }

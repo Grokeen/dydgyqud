@@ -150,20 +150,25 @@ public sealed class FortressPlayModeTests
     {
         game.BeginBattle(); yield return null;
         Assert.That(game.UsesArrows, Is.True);
-        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseMaxArrows));
-        Call("PlayArrowCard", new FortressCardEntry("화살", FortressCardEffect.AddArrows, 4, 1, FortressCardRarity.Common, null));
-        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseMaxArrows + 4));
+        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseArrows));
+        var addFour = new FortressCardEntry("화살", FortressCardEffect.AddArrows, 4, 1, FortressCardRarity.Common, null);
+        Call("PlayArrowCard", addFour);
+        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseArrows + 4));
+        // Adding never passes the cap.
+        Call("PlayArrowCard", addFour); Call("PlayArrowCard", addFour);
+        Assert.That(game.ArrowCount, Is.EqualTo(game.MaxArrowCount));
         // One attack looses every arrow held.
         Call("ConsumeAttackBuffs");
         Assert.That(game.ArrowCount, Is.Zero);
-        Assert.That(Field("volleyRemaining"), Is.EqualTo(game.Rules.baseMaxArrows + 4 - 1));
+        Assert.That(Field("volleyRemaining"), Is.EqualTo(game.MaxArrowCount - 1));
         // A miss stays on the map until recovered, and recovered arrows join next turn's quiver.
         Call("PlayerArrowMissed", Feet(0) + Vector2.right * 3, Vector2.right, true);
         Assert.That(game.FallenArrowCount, Is.EqualTo(1));
         Call("PlayArrowCard", new FortressCardEntry("화살 줍기", FortressCardEffect.Recover, 1, 0, FortressCardRarity.Common, null));
         Assert.That(game.FallenArrowCount, Is.Zero); Assert.That(game.RecoveredArrowsNextTurn, Is.EqualTo(1));
+        // Next turn is back to the base count, plus what was recovered.
         Call("RefillArrows");
-        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseMaxArrows + 1));
+        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseArrows + 1));
     }
 
     [UnityTest]

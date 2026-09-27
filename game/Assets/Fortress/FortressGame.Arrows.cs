@@ -3,10 +3,10 @@ using UnityEngine;
 
 namespace MiniFortress
 {
-    // Archer arrows. Each player turn refills the quiver to its maximum (base 10) plus arrows recovered last turn,
-    // and one attack looses every arrow held. "Add arrows" cards only raise this turn's count; max-arrow cards
-    // raise the refill for the rest of the battle. Arrows that miss stay on the map; recovering takes the ones
-    // nearest the archer off the map and adds them to next turn's volley.
+    // Archer arrows. Each player turn starts with 1 arrow (plus arrows recovered last turn); cards add more, but
+    // never past the cap (10, raised only by max-arrow cards). One attack looses every arrow held in a quick
+    // stream at the same angle, and the count drops back to 1 next turn. Arrows that miss stay on the map;
+    // recovering takes the ones nearest the archer off the map and adds them to next turn's volley.
     public sealed partial class FortressGame
     {
         sealed class FallenArrow { public Transform view; public int round; }
@@ -20,23 +20,27 @@ namespace MiniFortress
         {
             ClearFallenArrows();
             maxArrowBonus = recoveredNext = recoveredTotal = stormArrows = stormDamage = 0; attackMultiplier = 1;
-            arrows = MaxArrows;
+            arrows = arena.rules.baseArrows;
         }
 
-        void RefillArrows() { arrows = MaxArrows + recoveredNext; recoveredNext = 0; }
+        void RefillArrows() { arrows = Mathf.Min(MaxArrows, arena.rules.baseArrows + recoveredNext); recoveredNext = 0; }
 
-        // Number of arrows this attack looses (1 for non-archers). Called once when the player attacks.
-        int TakeArrowsForAttack()
+        void AddArrows(int count) => arrows = Mathf.Min(MaxArrows, arrows + count);
+
+        // Number of arrows this attack looses. Called once when the player attacks; extra comes from multi-shot
+        // cards. Non-archers throw one plus extras.
+        int TakeArrowsForAttack(int extra)
         {
             attackMultiplier = 1;
-            if (!UsesArrows) return 1;
+            if (!UsesArrows) return 1 + extra;
             var b = lockedBuffs;
-            int shots = arrows; arrows = 0;
+            int shots = arrows + extra; arrows = 0;
             if (b.recallAll) shots += Recall(a => true);
             else if (b.recallLastTurn) shots += Recall(a => a.round == round - 1);
-            if (b.storm > 0) { int extra = shots / 2; shots += extra; stormArrows += extra; stormDamage = b.storm; }
+            if (b.storm > 0) { int more = shots / 2; shots += more; stormArrows += more; stormDamage = b.storm; }
+            shots = Mathf.Clamp(shots, 1, MaxArrows);
             if (b.lastArrow > 0 && shots == 1) attackMultiplier = b.lastArrow;
-            return Mathf.Max(1, shots);
+            return shots;
         }
 
         // A player arrow that hurt nobody: it stays where it landed, unless "빗나간 한 발" recovers it at once.
@@ -79,20 +83,21 @@ namespace MiniFortress
             fallenArrows.Clear();
         }
 
-        int ExcessArrows => Mathf.Max(0, arrows - MaxArrows);
+        // Arrows beyond the base cap of 10, possible once max-arrow cards have raised the cap.
+        int ExcessArrows => Mathf.Max(0, arrows - arena.rules.baseMaxArrows);
 
         // Card effects about arrows; returns false for effects handled elsewhere.
         bool PlayArrowCard(FortressCardEntry card)
         {
             switch (card.effect)
             {
-                case FortressCardEffect.AddArrows: arrows += card.value; if (card.count > 0) DrawCards(card.count); return true;
-                case FortressCardEffect.SloppyArrow: arrows += card.value; bonusDamage -= card.count; return true;
+                case FortressCardEffect.AddArrows: AddArrows(card.value); if (card.count > 0) DrawCards(card.count); return true;
+                case FortressCardEffect.SloppyArrow: AddArrows(card.value); bonusDamage -= card.count; return true;
                 case FortressCardEffect.MaxArrows: maxArrowBonus += card.value; return true;
                 case FortressCardEffect.Bundle:
-                    arrows += card.value; maxArrowBonus = Mathf.Max(maxArrowBonus, card.count - arena.rules.baseMaxArrows); return true;
+                    maxArrowBonus = Mathf.Max(maxArrowBonus, card.count - arena.rules.baseMaxArrows); AddArrows(card.value); return true;
                 case FortressCardEffect.Recover: recoveredNext += RecoverNearest(card.value); return true;
-                case FortressCardEffect.RecoverNow: arrows += RecoverNearest(card.value); return true;
+                case FortressCardEffect.RecoverNow: AddArrows(RecoverNearest(card.value)); return true;
                 case FortressCardEffect.RecoverMaxUp: recoveredNext += RecoverNearest(card.value); maxArrowBonus += 1; return true;
                 case FortressCardEffect.RecoverMisses: pendingBuffs.recoverMisses = true; return true;
                 case FortressCardEffect.RecallLastTurn: pendingBuffs.recallLastTurn = true; return true;

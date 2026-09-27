@@ -76,16 +76,14 @@ namespace MiniFortress
             }
             message = $"카드 사용 · {card.title}: {card.Description}";
         }
-        // The archer looses every arrow held (plus card extras) in one attack.
+        // The archer looses every arrow held (plus card extras, up to the cap) in one attack.
         void ConsumeAttackBuffs()
         {
             LockAttackBuffs();
-            volleyRemaining = TakeArrowsForAttack() + bonusShots - 1;
+            volleyRemaining = TakeArrowsForAttack(bonusShots) - 1;
             shotDamageBonus = bonusDamage; shotCriticalChance = bonusCritical;
             bonusShots = bonusDamage = bonusCritical = 0;
         }
-        // Alternates +1, -1, +2, -2 … spread steps so a volley fans around the aimed arc.
-        float VolleyAngleOffset(int shot) => shot == 0 ? 0 : (shot % 2 == 1 ? 1 : -1) * ((shot + 1) / 2) * arena.rules.volleySpread;
         void RollCritical(int index) => shotCritical = index == 0 && Random.Range(0, 100) < shotCriticalChance;
         int ShotDamage(int index, bool critical)
         {
