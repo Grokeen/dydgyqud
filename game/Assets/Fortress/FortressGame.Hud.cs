@@ -30,6 +30,8 @@ namespace MiniFortress
         public bool IsCharging => charging;
         // 0 at the start of a charge, 1 at full power; 0 while not charging.
         public float ChargeFraction => charging ? Mathf.InverseLerp(Rules.powerLimits.x, Rules.powerLimits.y, fighters[0].power) : 0;
+        // Previous shot's power (0..1), kept across turns and stages of a run; -1 before the first shot.
+        public float LastPowerFraction => lastPowerFraction;
         public float Angle => fighters[0].angle;
         public float Power => fighters[0].power;
         public string Message => message;
@@ -37,14 +39,14 @@ namespace MiniFortress
         public struct ActorInfo
         {
             public string name;
-            public int hp, maxHp;
+            public int hp, maxHp, bleed;
             public Sprite portrait;
             public Vector3 head;
         }
         public ActorInfo GetActor(int index)
         {
             var f = fighters[index];
-            return new ActorInfo { name = f.name, hp = f.hp, maxHp = f.maxHp, portrait = f.definition.portrait,
+            return new ActorInfo { name = f.name, hp = f.hp, maxHp = f.maxHp, bleed = f.bleed, portrait = f.definition.portrait,
                 head = f.feet + Vector2.up * (Height(f) + .45f) };
         }
         public int CardEnergy => energy;
@@ -56,7 +58,13 @@ namespace MiniFortress
         public string PendingAttackBuffs => PendingBuffText();
         public string CardTitle(int index) => hand[index].title;
         public string CardDescription(int index) => hand[index].Description;
-        public int CardCost(int index) => hand[index].cost;
+        public int CardCost(int index) => EffectiveCost(hand[index]);
+        public int BleedThresholdNow => BleedThreshold;
+        public bool UsesArrows => fighters.Count > 0 && fighters[0].definition.weapon == FortressWeapon.Bow;
+        public int ArrowCount => arrows;
+        public int MaxArrowCount => MaxArrows;
+        public int RecoveredArrowsNextTurn => recoveredNext;
+        public int FallenArrowCount => fallenArrows.Count;
         public bool CanPlayCard(int index) => CanPlay(index);
         public void RequestPlayCard(int index) { if (ready) PlayCard(index); }
         public void SetAngle(float value)

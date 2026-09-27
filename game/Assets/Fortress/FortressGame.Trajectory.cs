@@ -216,6 +216,7 @@ namespace MiniFortress
 
         void ClearTrajectoryEffects()
         {
+            ClearVolley();
             guideVisible = false; trailCount = 0;
             trailRecording = false; trailFade = 0;
             predictedPeak = float.NegativeInfinity; previewMinimum = float.PositiveInfinity;

@@ -30,6 +30,13 @@ namespace MiniFortress
         public Text characterDetail, deckText, discardText;
         public Image characterPortrait;
         public GameObject settingsPanel;
+        [Header("Stage banner (새 스테이지 시작 시 잠깐 표시)")]
+        public CanvasGroup stageBanner;
+        public Text stageBannerTitle, stageBannerSubtitle;
+        [Min(.1f)] public float stageBannerSeconds = 2.5f;
+        int bannerStage;
+        bool wasSelecting = true;
+        float bannerTime;
         [Header("Stage reward (비워 두면 결과 패널에 글자로 표시)")]
         public GameObject rewardPanel;
         public Text rewardTitle;
@@ -38,6 +45,8 @@ namespace MiniFortress
         public Color[] rarityColors = { new Color(.62f, .66f, .7f), new Color(.3f, .6f, 1), new Color(.72f, .4f, 1), new Color(1, .78f, .25f) };
         [Header("Gauges")]
         public Image healthFill, moveFill, powerFill;
+        [Tooltip("위력 게이지 위에 이전 발사 위력을 표시하는 눈금")]
+        public RectTransform lastPowerMarker;
         public Text healthText, moveText;
 
         public void ToggleSettings() { if (settingsPanel) settingsPanel.SetActive(!settingsPanel.activeSelf); }
@@ -61,7 +70,10 @@ namespace MiniFortress
             for (int i = 0; i < game.FighterCount; i++)
             {
                 var turn = Instantiate(turnTemplate, turnRoot); turn.gameObject.SetActive(true); turns.Add(turn);
-                var health = Instantiate(healthTemplate, healthRoot); health.gameObject.SetActive(true); healthBars.Add(health);
+                // Health bars float over enemies only; the player's health is in the character box.
+                var bar = i == 0 ? null : Instantiate(healthTemplate, healthRoot);
+                if (bar && bar.label) bar.label.horizontalOverflow = HorizontalWrapMode.Overflow; // room for bleed
+                healthBars.Add(bar);
             }
         }
 
@@ -74,6 +86,7 @@ namespace MiniFortress
             if (rewardPanel) rewardPanel.SetActive(rewardScreen);
             resultPanel.SetActive(game.IsFinished && !rewardScreen);
             if (rewardScreen) ShowRewards();
+            UpdateStageBanner(selecting);
             if (selecting)
             {
                 for (int i = 0; i < cards.Count; i++) cards[i].Show(game.Classes[i], game.SelectedClass == i);
@@ -82,13 +95,21 @@ namespace MiniFortress
             var player = game.GetActor(0);
             playerPortrait.sprite = player.portrait;
             // Gauges take over health and movement; the status text keeps whatever has no gauge.
-            playerStatus.text = healthFill ? player.name : moveFill ? $"{player.name}\nHP {player.hp} / {player.maxHp}"
+            string quiver = game.UsesArrows ? $" · 화살 {game.ArrowCount}/{game.MaxArrowCount}"
+                + (game.RecoveredArrowsNextTurn > 0 ? $" (+{game.RecoveredArrowsNextTurn})" : "") : "";
+            playerStatus.text = healthFill ? player.name + quiver : moveFill ? $"{player.name}\nHP {player.hp} / {player.maxHp}"
                 : $"{player.name}\nHP {player.hp} / {player.maxHp}\n이동 {game.MovementRemaining:0.0} / {game.PlayerMovementLimit:0.#} m";
             if (healthFill) healthFill.fillAmount = player.maxHp > 0 ? player.hp / (float)player.maxHp : 0;
             if (healthText) healthText.text = $"{player.hp} / {player.maxHp}";
             if (moveFill) moveFill.fillAmount = game.PlayerMovementLimit > 0 ? game.MovementRemaining / game.PlayerMovementLimit : 0;
             if (moveText) moveText.text = $"{game.MovementRemaining:0.0} / {game.PlayerMovementLimit:0.#} m";
             if (powerFill) powerFill.fillAmount = game.ChargeFraction;
+            if (lastPowerMarker)
+            {
+                bool shown = game.LastPowerFraction >= 0;
+                lastPowerMarker.gameObject.SetActive(shown);
+                if (shown) lastPowerMarker.anchorMin = lastPowerMarker.anchorMax = new Vector2(game.LastPowerFraction, .5f);
+            }
             if (characterPortrait) characterPortrait.sprite = player.portrait;
             if (characterDetail)
                 characterDetail.text = healthFill
@@ -100,7 +121,10 @@ namespace MiniFortress
             messageText.text = resultText.text = game.Message;
             attackText.text = game.HasAttacked ? "공격 완료" : game.IsCharging ? "위력 모으는 중…" : game.CurrentAttackName + " [Space]";
             aimText.text = $"각도 {game.Angle:0}°";
-            powerText.text = powerFill ? $"{game.ChargeFraction * 100:0}%" : $"위력 {game.Power:0.0}";
+            // While charging show the live value; otherwise remind the player of the previous shot.
+            powerText.text = !powerFill ? $"위력 {game.Power:0.0}"
+                : game.IsCharging || game.LastPowerFraction < 0 ? $"{game.ChargeFraction * 100:0}%"
+                : $"이전 {game.LastPowerFraction * 100:0}%";
             if (angleSlider) { angleSlider.SetValueWithoutNotify(game.Angle); angleSlider.interactable = game.CanAim; }
             if (powerSlider) { powerSlider.SetValueWithoutNotify(game.Power); powerSlider.interactable = game.CanAim; }
             fireButton.interactable = game.CanFire; endTurnButton.interactable = game.CanEndTurn;
@@ -110,15 +134,37 @@ namespace MiniFortress
             {
                 var actor = game.GetActor(i);
                 turns[i].gameObject.SetActive(game.IsPresent(i));
-                turns[i].Show(actor.portrait, actor.hp > 0 ? actor.name : "처치", actor.hp, actor.maxHp, game.CurrentActor == i && !game.IsFinished);
                 var bar = healthBars[i];
-                Vector3 view = game.WorldCamera.WorldToViewportPoint(actor.head);
-                bar.gameObject.SetActive(actor.hp > 0 && view.z > 0);
-                var rect = (RectTransform)bar.transform;
-                rect.pivot = new Vector2(.5f, 0);
-                rect.anchorMin = rect.anchorMax = new Vector2(view.x, view.y); rect.anchoredPosition = Vector2.zero;
-                bar.Show(null, $"{actor.hp}/{actor.maxHp}", actor.hp, actor.maxHp, false);
+                if (bar)
+                {
+                    Vector3 view = game.WorldCamera.WorldToViewportPoint(actor.head);
+                    bar.gameObject.SetActive(actor.hp > 0 && view.z > 0);
+                    var rect = (RectTransform)bar.transform;
+                    rect.pivot = new Vector2(.5f, 0);
+                    rect.anchorMin = rect.anchorMax = new Vector2(view.x, view.y); rect.anchoredPosition = Vector2.zero;
+                    string bleed = actor.bleed > 0 ? $"  출혈 {actor.bleed}/{game.BleedThresholdNow}" : "";
+                    bar.Show(null, $"{actor.hp}/{actor.maxHp}{bleed}", actor.hp, actor.maxHp, false);
+                }
+                turns[i].Show(actor.portrait, actor.hp > 0 ? actor.name : "처치", actor.hp, actor.maxHp, game.CurrentActor == i && !game.IsFinished);
             }
+        }
+
+        // Shown when a battle starts and whenever the stage changes, then fades out.
+        void UpdateStageBanner(bool selecting)
+        {
+            if (!stageBanner) return;
+            if (!selecting && (wasSelecting || game.Stage != bannerStage))
+            {
+                bannerStage = game.Stage; bannerTime = stageBannerSeconds;
+                if (stageBannerTitle) stageBannerTitle.text = $"스테이지 {game.Stage}";
+                if (stageBannerSubtitle)
+                    stageBannerSubtitle.text = (game.Stage == 1 ? "검은 달의 성채" : "다음 지역으로 진입") + $" · 적 {game.EnemyCount}명";
+            }
+            wasSelecting = selecting;
+            if (selecting) bannerTime = 0;
+            bannerTime = Mathf.Max(0, bannerTime - Time.unscaledDeltaTime);
+            stageBanner.gameObject.SetActive(bannerTime > 0);
+            stageBanner.alpha = Mathf.Clamp01(bannerTime / .6f);
         }
 
         void BindRewards()

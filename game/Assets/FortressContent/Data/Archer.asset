@@ -19,8 +19,8 @@ MonoBehaviour:
   projectile: {fileID: 21300000, guid: 40653846413ce4241b50a33b7337749c, type: 3}
   weapon: 0
   health: 120
-  damage: 32
-  blastRadius: 3.5
+  damage: 6
+  blastRadius: 1.5
   movementPerTurn: 10
   movementSpeed: 5
   releaseTime: 0.16

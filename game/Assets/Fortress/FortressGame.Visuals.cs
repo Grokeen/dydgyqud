@@ -49,7 +49,7 @@ namespace MiniFortress
             playerClass = highlightedClass;
             var previous = fighters[0].root.gameObject; previous.SetActive(false); Destroy(previous);
             fighters[0] = CreateFighter(arena.playerClasses[playerClass], starts[0], null);
-            StartRun(); Restart();
+            StartRun(); lastPowerFraction = -1; Restart();
             if (EnemiesAlive() == 0) Finish(true);
         }
     }

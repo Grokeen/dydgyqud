@@ -26,7 +26,7 @@ MonoBehaviour:
     width: 112
     height: 160
   shotLifetime: 10
-  angleLimits: {x: 10, y: 80}
+  angleLimits: {x: 0, y: 90}
   powerLimits: {x: 10, y: 38}
   defaultAngle: 48
   defaultPower: 26

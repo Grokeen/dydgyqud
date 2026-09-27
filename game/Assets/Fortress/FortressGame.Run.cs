@@ -50,7 +50,7 @@ namespace MiniFortress
             pool.RemoveAll(card => card.rarity == FortressCardRarity.Legend);
             while (rewards.Count < RewardChoices && pool.Count > 0)
             {
-                var rarity = RollRarity(pool);
+                var rarity = RollRarity(pool, arena.rules);
                 var candidates = pool.FindAll(card => card.rarity == rarity);
                 var pick = candidates[Random.Range(0, candidates.Count)];
                 rewards.Add(pick); pool.Remove(pick);
@@ -62,11 +62,14 @@ namespace MiniFortress
             message = text.ToString();
         }
 
-        // Common 60%, Rare 30%, Hero 10%, falling back to whatever rarity the remaining pool still has.
-        static FortressCardRarity RollRarity(List<FortressCardEntry> pool)
+        // Each choice rolls its rarity from the rules (default Common 65 / Rare 25 / Hero 10). If the pool has
+        // no card of that rarity left, it falls back to the next lower rarity that it does have.
+        static FortressCardRarity RollRarity(List<FortressCardEntry> pool, FortressBattleRules rules)
         {
-            float roll = Random.value;
-            var wanted = roll < .6f ? FortressCardRarity.Common : roll < .9f ? FortressCardRarity.Rare : FortressCardRarity.Hero;
+            float total = rules.commonChance + rules.rareChance + rules.heroChance;
+            float roll = Random.value * (total > 0 ? total : 1);
+            var wanted = roll < rules.commonChance ? FortressCardRarity.Common
+                : roll < rules.commonChance + rules.rareChance ? FortressCardRarity.Rare : FortressCardRarity.Hero;
             for (var rarity = wanted; rarity >= FortressCardRarity.Common; rarity--)
                 if (pool.Exists(card => card.rarity == rarity)) return rarity;
             return pool[0].rarity;

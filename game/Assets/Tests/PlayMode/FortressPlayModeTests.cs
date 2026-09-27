@@ -132,6 +132,7 @@ public sealed class FortressPlayModeTests
         game.RequestBeginCharge(); Assert.That(game.IsCharging, Is.True); Assert.That(game.ChargeFraction, Is.Zero);
         yield return new WaitForSeconds(.2f); Assert.That(game.ChargeFraction, Is.GreaterThan(0));
         game.RequestReleaseCharge(); Assert.That(game.HasAttacked, Is.True); Assert.That(game.IsCharging, Is.False);
+        Assert.That(game.LastPowerFraction, Is.GreaterThan(0));
         game.RequestRestart(); yield return null;
         hud.jumpButton.onClick.Invoke(); Assert.That(game.CanFire, Is.False);
         game.RequestRestart();
@@ -143,6 +144,43 @@ public sealed class FortressPlayModeTests
     }
 
     void SetField(string name, object value) => typeof(FortressGame).GetField(name, Hidden).SetValue(game, value);
+
+    [UnityTest]
+    public IEnumerator ArcherLoosesWholeQuiverAndRecoversFallenArrows()
+    {
+        game.BeginBattle(); yield return null;
+        Assert.That(game.UsesArrows, Is.True);
+        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseMaxArrows));
+        Call("PlayArrowCard", new FortressCardEntry("화살", FortressCardEffect.AddArrows, 4, 1, FortressCardRarity.Common, null));
+        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseMaxArrows + 4));
+        // One attack looses every arrow held.
+        Call("ConsumeAttackBuffs");
+        Assert.That(game.ArrowCount, Is.Zero);
+        Assert.That(Field("volleyRemaining"), Is.EqualTo(game.Rules.baseMaxArrows + 4 - 1));
+        // A miss stays on the map until recovered, and recovered arrows join next turn's quiver.
+        Call("PlayerArrowMissed", Feet(0) + Vector2.right * 3, Vector2.right, true);
+        Assert.That(game.FallenArrowCount, Is.EqualTo(1));
+        Call("PlayArrowCard", new FortressCardEntry("화살 줍기", FortressCardEffect.Recover, 1, 0, FortressCardRarity.Common, null));
+        Assert.That(game.FallenArrowCount, Is.Zero); Assert.That(game.RecoveredArrowsNextTurn, Is.EqualTo(1));
+        Call("RefillArrows");
+        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseMaxArrows + 1));
+    }
+
+    [UnityTest]
+    public IEnumerator BleedStacksAndBurstsAtThreshold()
+    {
+        game.BeginBattle(); yield return null;
+        SetActor(1, "maxHp", 200); SetActor(1, "hp", 200); SetActor(1, "bleed", game.Rules.bleedThreshold - 1);
+        Call("PlayBleedCard", new FortressCardEntry("출혈", FortressCardEffect.Bleed, 2, 1, FortressCardRarity.Common, null));
+        Call("LockAttackBuffs");
+        SetField("mainShotMods", Call("NextArrowMods")); SetField("current", 0);
+        SetField("shotPosition", Feet(1) + Vector2.up * 2);
+        Call("Impact", 1, false);
+        // Arrow damage, then bleed 9 + 2 = 11 bursts once for 20 and keeps the remaining 1.
+        Assert.That(game.GetActor(1).hp, Is.EqualTo(200 - game.Classes[0].damage - game.Rules.bleedBurstDamage));
+        Assert.That(game.GetActor(1).bleed, Is.EqualTo(1));
+        Assert.That(game.Message, Does.Contain("출혈 폭발"));
+    }
 
     [UnityTest]
     public IEnumerator EarlyStagesFieldOnlyTheWeakestEnemies()

@@ -106,6 +106,8 @@ public static class FortressSceneBuilder
         FortressHudLayout.ApplyChargeLayout(hud);
         FortressHudLayout.ApplyHealthGauge(hud);
         FortressHudLayout.ApplyRewardPanel(hud);
+        FortressHudLayout.ApplyStageBanner(hud);
+        FortressHudLayout.ApplyLastPowerMarker(hud);
         hud.battlefield.texture = background.texture;
         var serialized = new SerializedObject(game);
         serialized.FindProperty("arena").objectReferenceValue = arena;

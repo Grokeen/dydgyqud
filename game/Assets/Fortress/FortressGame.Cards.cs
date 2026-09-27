@@ -8,11 +8,11 @@ namespace MiniFortress
         readonly List<FortressCardEntry> drawPile = new List<FortressCardEntry>();
         readonly List<FortressCardEntry> discardPile = new List<FortressCardEntry>();
         readonly List<FortressCardEntry> hand = new List<FortressCardEntry>();
-        int energy, block, battleDamage;
+        int energy, block, battleDamage, costDiscount;
         // Banked by cards until the player's next attack.
         int bonusShots, bonusDamage, bonusCritical;
         // Locked in when the player attacks and used by every projectile of that volley.
-        int volleyRemaining, volleyIndex, shotDamageBonus, shotCriticalChance;
+        int volleyRemaining, shotDamageBonus, shotCriticalChance;
         bool shotCritical;
 
         // Every battle starts from the run deck, so reward cards picked in earlier stages are included.
@@ -23,7 +23,8 @@ namespace MiniFortress
             drawPile.AddRange(runDeck);
             Shuffle(drawPile);
             block = battleDamage = bonusShots = bonusDamage = bonusCritical = 0;
-            volleyRemaining = volleyIndex = shotDamageBonus = shotCriticalChance = 0; shotCritical = false;
+            volleyRemaining = shotDamageBonus = shotCriticalChance = costDiscount = 0; shotCritical = false;
+            ResetBleedState(); ResetArrows();
         }
         static void Shuffle(List<FortressCardEntry> cards)
         {
@@ -33,6 +34,7 @@ namespace MiniFortress
         {
             discardPile.AddRange(hand); hand.Clear();
             energy = arena.rules.cardEnergy; block = 0;
+            ResetTurnBleedEffects(); RefillArrows();
             DrawCards(arena.rules.handSize);
         }
         // An empty draw pile reshuffles the discard pile back in; the hand never exceeds maxHandSize.
@@ -49,45 +51,47 @@ namespace MiniFortress
         {
             if (!ready || phase != Phase.Aim || current != 0 || index < 0 || index >= hand.Count) return false;
             var card = hand[index];
-            return energy >= card.cost && !(card.IsAttackBuff && playerHasAttacked);
+            return energy >= EffectiveCost(card) && !(card.IsAttackBuff && playerHasAttacked);
         }
+        int EffectiveCost(FortressCardEntry card) => Mathf.Max(0, card.cost - costDiscount);
         void PlayCard(int index)
         {
             if (!CanPlay(index)) return;
             var card = hand[index];
-            energy -= card.cost; hand.RemoveAt(index); discardPile.Add(card);
+            // A discount is used up by the next card played, then that card's own effect applies.
+            energy -= EffectiveCost(card); costDiscount = 0;
+            hand.RemoveAt(index);
+            if (!card.exhaust) discardPile.Add(card); // exhausted cards sit out the rest of the battle
             switch (card.effect)
             {
+                case FortressCardEffect.Retreat: block += card.value + (playerHasAttacked ? 0 : card.value); break;
+                case FortressCardEffect.CostDiscount: costDiscount += card.value; break;
                 case FortressCardEffect.ExtraShot: bonusShots += card.value; break;
                 case FortressCardEffect.Defense: block += card.value; break;
                 case FortressCardEffect.ShotDamage: bonusDamage += card.value; break;
                 case FortressCardEffect.CriticalChance: bonusCritical += card.value; break;
                 case FortressCardEffect.Draw: DrawCards(card.value); break;
                 case FortressCardEffect.BattleDamage: battleDamage += card.value; break;
+                default: if (!PlayBleedCard(card)) PlayArrowCard(card); break;
             }
             message = $"카드 사용 · {card.title}: {card.Description}";
         }
+        // The archer looses every arrow held (plus card extras) in one attack.
         void ConsumeAttackBuffs()
         {
-            volleyRemaining = bonusShots; volleyIndex = 0;
+            LockAttackBuffs();
+            volleyRemaining = TakeArrowsForAttack() + bonusShots - 1;
             shotDamageBonus = bonusDamage; shotCriticalChance = bonusCritical;
             bonusShots = bonusDamage = bonusCritical = 0;
         }
         // Alternates +1, -1, +2, -2 … spread steps so a volley fans around the aimed arc.
         float VolleyAngleOffset(int shot) => shot == 0 ? 0 : (shot % 2 == 1 ? 1 : -1) * ((shot + 1) / 2) * arena.rules.volleySpread;
-        bool TryContinueVolley()
-        {
-            if (current != 0 || volleyRemaining <= 0) return false;
-            volleyRemaining--; volleyIndex++;
-            phase = Phase.Attack; timer = fighters[0].definition.releaseTime;
-            fighters[0].animator.SetTrigger(fighters[0].definition.weapon == FortressWeapon.Spear ? SpearAttackParameter : BowAttackParameter);
-            return true;
-        }
         void RollCritical(int index) => shotCritical = index == 0 && Random.Range(0, 100) < shotCriticalChance;
-        int ShotDamage(int index)
+        int ShotDamage(int index, bool critical)
         {
             int damage = fighters[index].definition.damage + (index == 0 ? shotDamageBonus + battleDamage : 0);
-            return shotCritical && index == 0 ? Mathf.RoundToInt(damage * arena.rules.criticalMultiplier) : damage;
+            if (index == 0) damage = Mathf.Max(0, damage * attackMultiplier);
+            return critical && index == 0 ? Mathf.RoundToInt(damage * arena.rules.criticalMultiplier) : damage;
         }
         int AbsorbWithBlock(int damage)
         {
@@ -99,6 +103,7 @@ namespace MiniFortress
             if (bonusShots > 0) parts.Add($"+{bonusShots}발");
             if (bonusDamage > 0) parts.Add($"피해 +{bonusDamage}");
             if (bonusCritical > 0) parts.Add($"치명타 {Mathf.Min(bonusCritical, 100)}%");
+            string bleed = PendingBleedText(); if (bleed.Length > 0) parts.Add(bleed);
             return parts.Count == 0 ? "없음" : string.Join(", ", parts);
         }
     }

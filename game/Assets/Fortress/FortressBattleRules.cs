@@ -14,7 +14,7 @@ namespace MiniFortress
         public Vector2 horizontalLimits = new Vector2(0, 102);
         public Rect projectileLimits = new Rect(-6, -13, 112, 160);
         [Min(.1f)] public float shotLifetime = 10;
-        public Vector2 angleLimits = new Vector2(10, 80);
+        public Vector2 angleLimits = new Vector2(0, 90);
         public Vector2 powerLimits = new Vector2(10, 38);
         public float defaultAngle = 48, defaultPower = 26;
         [Min(0)] public float angleSpeed = 35, powerSpeed = 12;
@@ -24,12 +24,27 @@ namespace MiniFortress
         [Min(0)] public int earlyStages = 2;
         [Tooltip("초반 스테이지에 출전하는 적 수 (체력이 낮은 적부터, 같으면 Hierarchy 순서)")]
         [Min(1)] public int earlyStageEnemies = 2;
+        [Header("Card rewards (선택지 한 장마다 등급 확률, 합이 100이 아니어도 비율로 계산)")]
+        [Min(0)] public float commonChance = 65;
+        [Min(0)] public float rareChance = 25;
+        [Min(0)] public float heroChance = 10;
+        [Header("Arrows (궁수)")]
+        [Tooltip("매 턴 채워지는 기본 최대 화살 수. 공격 한 번에 가진 화살을 모두 쏩니다.")]
+        [Min(1)] public int baseMaxArrows = 10;
+        [Header("Bleed")]
+        [Tooltip("출혈이 이만큼 쌓이면 폭발합니다.")]
+        [Min(1)] public int bleedThreshold = 10;
+        [Min(0)] public int bleedBurstDamage = 20;
+        [Tooltip("연쇄 출혈이 퍼지는 거리")]
+        [Min(0)] public float chainBleedRange = 8;
         [Header("Cards")]
         [Min(0)] public int cardEnergy = 3;
         [Min(1)] public int handSize = 5;
         [Tooltip("카드를 추가로 뽑을 때 손패가 이 수를 넘지 않습니다.")]
         [Min(1)] public int maxHandSize = 8;
         [Min(1)] public float criticalMultiplier = 2;
+        [Tooltip("연사 시 다음 화살이 뒤따라 발사되는 간격(초)")]
+        [Min(0)] public float volleyInterval = .12f;
         [Tooltip("연사 시 화살마다 벌어지는 각도")]
         [Min(0)] public float volleySpread = 2.5f;
     }

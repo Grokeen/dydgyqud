@@ -49,8 +49,10 @@ public static class FortressHudLayout
     static bool NeedsChargeLayout(FortressHud hud) => hud.angleSlider || hud.powerSlider;
     static bool NeedsHealthGauge(FortressHud hud) => !hud.healthFill;
     static bool NeedsRewardPanel(FortressHud hud) => !hud.rewardPanel;
-    static bool NeedsAnyStep(FortressHud hud) =>
-        NeedsMockup(hud) || NeedsChargeLayout(hud) || NeedsHealthGauge(hud) || NeedsRewardPanel(hud);
+    static bool NeedsStageBanner(FortressHud hud) => !hud.stageBanner;
+    static bool NeedsLastPowerMarker(FortressHud hud) => !hud.lastPowerMarker && hud.powerFill;
+    static bool NeedsAnyStep(FortressHud hud) => NeedsMockup(hud) || NeedsChargeLayout(hud) || NeedsHealthGauge(hud)
+        || NeedsRewardPanel(hud) || NeedsStageBanner(hud) || NeedsLastPowerMarker(hud);
 
     [MenuItem("Mini Fortress/HUD 목업 레이아웃 적용")]
     static void ApplyMenu()
@@ -65,6 +67,8 @@ public static class FortressHudLayout
         if (NeedsChargeLayout(hud)) ApplyChargeLayout(hud);
         if (NeedsHealthGauge(hud)) ApplyHealthGauge(hud);
         if (NeedsRewardPanel(hud)) ApplyRewardPanel(hud);
+        if (NeedsStageBanner(hud)) ApplyStageBanner(hud);
+        if (NeedsLastPowerMarker(hud)) ApplyLastPowerMarker(hud);
         EditorSceneManager.MarkSceneDirty(hud.gameObject.scene);
         Debug.Log("HUD 레이아웃을 적용했습니다. Ctrl+Z로 되돌리거나 씬을 저장하세요.", hud);
     }
@@ -101,6 +105,37 @@ public static class FortressHudLayout
             Place((RectTransform)help.transform, 10, 248, 424, 20);
             help.text = "A/D 이동 · W 점프 · S 내려가기 · ↑↓ 각도 · Space 길게 눌러 발사 · Tab 턴 종료"; help.fontSize = 12;
         }
+        EditorUtility.SetDirty(hud);
+    }
+
+    // White tick on the power gauge track at the previous shot's power; FortressHud slides it along.
+    public static void ApplyLastPowerMarker(FortressHud hud)
+    {
+        var marker = B.Picture(hud.powerFill.transform.parent, "Last Power", 0, 0, 4, 22);
+        marker.color = Color.white; marker.preserveAspect = false;
+        var rect = (RectTransform)marker.transform;
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(.5f, .5f); rect.anchoredPosition = Vector2.zero;
+        Created(marker.gameObject);
+        marker.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .8f);
+        hud.lastPowerMarker = rect;
+        marker.gameObject.SetActive(false);
+        EditorUtility.SetDirty(hud);
+    }
+
+    // A dark band across the middle of the map announcing the stage; it never blocks clicks.
+    public static void ApplyStageBanner(FortressHud hud)
+    {
+        var band = B.Picture(hud.battlePanel.transform, "Stage Banner", 0, 300, 1600, 150);
+        band.color = new Color(0, 0, 0, .6f); band.preserveAspect = false;
+        Created(band.gameObject);
+        var group = band.gameObject.AddComponent<CanvasGroup>(); group.blocksRaycasts = group.interactable = false;
+        hud.stageBanner = group;
+        hud.stageBannerTitle = B.Label(band.transform, "Title", "스테이지 1", 0, 18, 1600, 72, 52);
+        hud.stageBannerTitle.alignment = TextAnchor.MiddleCenter; hud.stageBannerTitle.color = new Color(1, .85f, .5f);
+        hud.stageBannerSubtitle = B.Label(band.transform, "Subtitle", "검은 달의 성채 · 적 2명", 0, 94, 1600, 36, 22);
+        hud.stageBannerSubtitle.alignment = TextAnchor.MiddleCenter;
+        band.gameObject.SetActive(false);
+        band.transform.SetAsLastSibling();
         EditorUtility.SetDirty(hud);
     }
 
