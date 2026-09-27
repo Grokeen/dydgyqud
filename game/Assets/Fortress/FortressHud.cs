@@ -427,6 +427,14 @@ namespace MiniFortress
         void BindRewards()
         {
             if (!rewardPanel || rewardSlots == null) return;
+            // The layout tool builds the panel inside Battle HUD, which LateUpdate hides on the reward screen;
+            // lift it out (same 1600x900 frame, same position) so it stays visible, above the battle HUD.
+            if (rewardPanel.transform.IsChildOf(battlePanel.transform))
+            {
+                rewardPanel.transform.SetParent(battlePanel.transform.parent, false);
+                rewardPanel.transform.SetAsLastSibling();
+                if (mainMenuPanel) mainMenuPanel.transform.SetAsLastSibling();
+            }
             for (int i = 0; i < rewardSlots.Length; i++)
             {
                 int choice = i;
@@ -437,7 +445,7 @@ namespace MiniFortress
 
         void ShowRewards()
         {
-            if (rewardTitle) rewardTitle.text = $"Stage {game.Stage} cleared";
+            if (rewardTitle) rewardTitle.text = $"스테이지 {game.Stage} 클리어!";
             if (rewardSlots == null) return;
             for (int i = 0; i < rewardSlots.Length; i++)
             {

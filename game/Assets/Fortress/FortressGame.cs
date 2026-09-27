@@ -75,6 +75,9 @@ namespace MiniFortress
             pixelFrame.Create(); worldCamera.targetTexture = pixelFrame;
             square = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.one * .5f, 1);
             ownedAssets.Add(square);
+            // Map presets (FortressGame.MapSelection) must be set up before the layout is read; lost in a merge once.
+            InitializeMapSelection();
+            ApplyMapPreset(MapPresets[0]);
             LoadArenaLayout();
             AddFighter(arena.playerClasses[0], starts[0], null);
             var spawns = arena.enemySpawns.GetComponentsInChildren<FortressSpawnPoint>();
