@@ -4,31 +4,36 @@ namespace MiniFortress
 {
     public enum FortressCardEffect
     {
-        ExtraShot, Defense, ShotDamage, CriticalChance,
+        ExtraShot, Defense, ShotDamage, CriticalChance, Draw, BattleDamage,
         Arrow, QuickLoad, DrawDiscard, BleedShot, Stake, PickArrow, Rupture, ArmorBreak,
         SplitShot, ArrowTrap, EvasiveManeuver, BleedVolley, ExtractPain, Rain, RecoverArrows,
         Quiver, Outpost, TacticalRearrangement
     }
+    public enum FortressCardRarity { Common, Rare, Hero, Legend }
 
     [System.Serializable]
     public sealed class FortressCardEntry
     {
         public string title;
         public FortressCardEffect effect;
-        [Tooltip("추가 발사 수 / 방어도 / 추가 피해 / 치명타 확률(%)")]
+        [Tooltip("추가 발사 수 / 방어도 / 추가 피해 / 치명타 확률(%) / 뽑을 장수 / 이번 전투 기본 피해 증가")]
         [Min(0)] public int value = 1;
         [Min(1)] public int copies = 1;
         [Min(0)] public int cost = 1;
         [Tooltip("70장 설계 문서의 카드 식별자")]
         public string id;
+        public FortressCardRarity rarity;
+        [TextArea] public string text;
 
         public FortressCardEntry() { }
         public FortressCardEntry(string title, FortressCardEffect effect, int value, int copies)
         { this.title = title; this.effect = effect; this.value = value; this.copies = copies; }
         public FortressCardEntry(string id, string title, FortressCardEffect effect, int value, int cost)
         { this.id = id; this.title = title; this.effect = effect; this.value = value; this.cost = cost; copies = 1; }
+        public FortressCardEntry(string title, FortressCardEffect effect, int value, int cost, FortressCardRarity rarity, string text)
+        { this.title = title; this.effect = effect; this.value = value; this.cost = cost; this.rarity = rarity; this.text = text; }
 
-        public string Description => effect switch
+        public string Description => !string.IsNullOrEmpty(text) ? text : effect switch
         {
             FortressCardEffect.ExtraShot => $"다음 공격 +{value}발 연사",
             FortressCardEffect.Defense => $"방어도 +{value}",
@@ -67,34 +72,30 @@ namespace MiniFortress
                 new FortressCardEntry("방어", FortressCardEffect.Defense, 10, 4),
                 new FortressCardEntry("창 크리티컬", FortressCardEffect.CriticalChance, 10, 2) }
             : new[] {
-                new FortressCardEntry("ARC-001", "화살", FortressCardEffect.Arrow, 2, 1) { copies = 4 },
-                new FortressCardEntry("ARC-002", "방어", FortressCardEffect.Defense, 10, 1) { copies = 4 },
-                new FortressCardEntry("ARC-003", "강화 사격", FortressCardEffect.ShotDamage, 10, 1) };
+                new FortressCardEntry("활", FortressCardEffect.ExtraShot, 1, 4),
+                new FortressCardEntry("방어", FortressCardEffect.Defense, 10, 4),
+                new FortressCardEntry("강화사격", FortressCardEffect.ShotDamage, 8, 1) };
 
         // 코덱스code(CodexCode): 설계 문서가 첫 실험 묶음으로 지정한 20장을 편집·테스트 가능한 카드 풀로 제공합니다.
+        // CodexCode: keep the pulled stage reward system while retaining the archer effects defined locally.
+        public static FortressCardEntry[] RewardPool(FortressWeapon weapon) => weapon == FortressWeapon.Spear
+            ? new[] {
+                new FortressCardEntry("창", FortressCardEffect.ShotDamage, 15, 1, FortressCardRarity.Common, null),
+                new FortressCardEntry("방어", FortressCardEffect.Defense, 10, 1, FortressCardRarity.Common, null),
+                new FortressCardEntry("창 크리티컬", FortressCardEffect.CriticalChance, 10, 1, FortressCardRarity.Rare, null) }
+            : new[] {
+                new FortressCardEntry("방어", FortressCardEffect.Defense, 10, 1, FortressCardRarity.Common, "방어도 10을 얻습니다."),
+                new FortressCardEntry("강화 사격", FortressCardEffect.BattleDamage, 10, 1, FortressCardRarity.Common, "이번 전투 동안 활의 기본 데미지가 10 증가합니다."),
+                new FortressCardEntry("짐정리", FortressCardEffect.Draw, 1, 1, FortressCardRarity.Common, "카드를 1장 뽑습니다."),
+                new FortressCardEntry("조준", FortressCardEffect.ShotDamage, 10, 1, FortressCardRarity.Common, "다음 화살의 데미지가 10 증가합니다."),
+                new FortressCardEntry("집중", FortressCardEffect.ShotDamage, 20, 1, FortressCardRarity.Common, "다음 화살의 데미지가 20 증가합니다."),
+                new FortressCardEntry("연속 사격", FortressCardEffect.ExtraShot, 1, 1, FortressCardRarity.Rare, "다음 화살이 2발 발사됩니다.") };
+
         public static FortressCardEntry[] ArcherPrototypePool() => new[]
         {
-            new FortressCardEntry("ARC-001", "화살", FortressCardEffect.Arrow, 2, 1),
-            new FortressCardEntry("ARC-002", "방어", FortressCardEffect.Defense, 10, 1),
-            new FortressCardEntry("ARC-003", "강화 사격", FortressCardEffect.ShotDamage, 10, 1),
-            new FortressCardEntry("ARC-004", "빠른 장전", FortressCardEffect.QuickLoad, 1, 1),
-            new FortressCardEntry("ARC-005", "짐정리", FortressCardEffect.DrawDiscard, 0, 1),
-            new FortressCardEntry("ARC-006", "출혈 화살", FortressCardEffect.BleedShot, 2, 1),
-            new FortressCardEntry("ARC-014", "말뚝 박기", FortressCardEffect.Stake, 0, 1),
-            new FortressCardEntry("ARC-015", "화살 줍기", FortressCardEffect.PickArrow, 2, 0),
-            new FortressCardEntry("ARC-026", "파열", FortressCardEffect.Rupture, 8, 2),
-            new FortressCardEntry("ARC-028", "철갑 파괴", FortressCardEffect.ArmorBreak, 15, 1),
-            new FortressCardEntry("ARC-029", "나눠 쏘기", FortressCardEffect.SplitShot, 0, 1),
-            new FortressCardEntry("ARC-030", "화살 덫", FortressCardEffect.ArrowTrap, 0, 1),
-            new FortressCardEntry("ARC-031", "회피 기동", FortressCardEffect.EvasiveManeuver, 2, 1),
-            new FortressCardEntry("ARC-039", "상처 덧긋기", FortressCardEffect.BleedVolley, 3, 1),
-            new FortressCardEntry("ARC-046", "뽑아낸 고통", FortressCardEffect.ExtractPain, 3, 1),
-            new FortressCardEntry("ARC-047", "폭우", FortressCardEffect.Rain, 3, 2),
-            new FortressCardEntry("ARC-048", "화살 회수", FortressCardEffect.RecoverArrows, 5, 2),
-            new FortressCardEntry("ARC-049", "화살통", FortressCardEffect.Quiver, 13, 1),
-            new FortressCardEntry("ARC-053", "사격 거점", FortressCardEffect.Outpost, 0, 2),
-            new FortressCardEntry("ARC-056", "전술 재편", FortressCardEffect.TacticalRearrangement, 0, 1)
-        };
+            new FortressCardEntry("Double Shot", FortressCardEffect.ExtraShot, 1, 4),
+                new FortressCardEntry("Guard", FortressCardEffect.Defense, 10, 4),
+                new FortressCardEntry("Strengthened Shot", FortressCardEffect.ShotDamage, 8, 1) };
 
         public Sprite Artwork
         {

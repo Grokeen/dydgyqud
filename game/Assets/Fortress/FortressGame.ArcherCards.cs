@@ -53,6 +53,7 @@ namespace MiniFortress
             }
         }
 
+        // CodexCode: card draws now use the shared run-deck implementation in FortressGame.Cards.cs.
         void LoadArrows(int amount)
         {
             int before = arrows;
@@ -62,18 +63,6 @@ namespace MiniFortress
                 message = $"화살 {arrows} / {arrowCapacity} · 초과 장전분은 소멸";
         }
 
-        void DrawCards(int amount)
-        {
-            for (int i = 0; i < amount && hand.Count < 8; i++)
-            {
-                if (drawPile.Count == 0)
-                {
-                    drawPile.AddRange(discardPile); discardPile.Clear(); Shuffle(drawPile);
-                }
-                if (drawPile.Count == 0) break;
-                hand.Add(drawPile[drawPile.Count - 1]); drawPile.RemoveAt(drawPile.Count - 1);
-            }
-        }
 
         void ClearArcherObjects()
         {

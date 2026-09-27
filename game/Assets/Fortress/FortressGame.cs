@@ -121,6 +121,7 @@ namespace MiniFortress
             }
             if (input.Back) { OpenSelection(); return; }
             if (input.Restart) { Restart(); return; }
+            if (choosingReward) UpdateRewardInput();
             if (phase == Phase.Aim)
             {
                 Fighter player = fighters[0];
@@ -352,13 +353,20 @@ namespace MiniFortress
             if (blocked > 0) message += " · 방어도로 " + blocked + " 막음";
             phase = Phase.Impact; timer = 0.55f;
         }
-        void Finish(bool won) { phase = Phase.Finished; message = won ? "승리 · 모든 적을 처치했습니다!" : "패배 · " + fighters[0].name + "가 쓰러졌습니다."; }
+        void Finish(bool won)
+        {
+            phase = Phase.Finished;
+            if (won) OfferRewards();
+            else message = "패배 · " + fighters[0].name + "가 쓰러졌습니다.";
+        }
         void Restart()
         {
             ClearTrajectoryEffects();
+            ApplyStageRoster();
             for (int i = 0; i < fighters.Count; i++) { fighters[i].hp = fighters[i].maxHp; fighters[i].armor = fighters[i].maxArmor; fighters[i].bleed = 0; fighters[i].feet = starts[i]; fighters[i].angle = arena.rules.defaultAngle; fighters[i].power = arena.rules.defaultPower; }
+            // CodexCode: restore armor and bleed with HP, then apply the pulled version stage roster.
             current = 0; round = 1; playerFacing = 1; moveRemaining = MoveLimit; grounded = true; fallSpeed = mouseMove = 0;
-            playerHasAttacked = charging = false;
+            playerHasAttacked = charging = choosingReward = false;
             safePosition = starts[0]; phase = Phase.Aim;
             arrow.gameObject.SetActive(false); burst.gameObject.SetActive(false);
             accumulator = shotAge = timer = enemyMoveTarget = 0;

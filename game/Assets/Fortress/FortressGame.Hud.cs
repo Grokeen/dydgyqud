@@ -16,6 +16,9 @@ namespace MiniFortress
         public int CurrentActor => current;
         public int Round => round;
         public int LivingEnemies => EnemiesAlive();
+        // Enemies fielded this stage; the others are left out of the turn order.
+        public int EnemyCount => EnemiesPresent();
+        public bool IsPresent(int index) => index < present.Length && present[index];
         public bool IsSelecting => phase == Phase.Selecting;
         public bool IsFinished => phase == Phase.Finished;
         public bool HasAttacked => playerHasAttacked;
@@ -70,6 +73,17 @@ namespace MiniFortress
         public void RequestJump() { if (ready) Jump(); }
         public void RequestDrop() { if (ready) DropFromBridge(); }
         public void RequestEndTurn() { if (ready) EndPlayerTurn(); }
+        // Run and stage rewards. While IsChoosingReward, IsFinished is also true.
+        public int Stage => stage;
+        public int DeckSize => runDeck.Count;
+        public bool IsChoosingReward => choosingReward;
+        public int RewardCount => choosingReward ? rewards.Count : 0;
+        public string RewardTitle(int index) => rewards[index].title;
+        public string RewardDescription(int index) => rewards[index].Description;
+        public int RewardCost(int index) => rewards[index].cost;
+        public FortressCardRarity RewardRarity(int index) => rewards[index].rarity;
+        public void RequestChooseReward(int index) { if (ready) ChooseReward(index); }
+        public void RequestSkipReward() { if (ready) SkipReward(); }
         public void RequestRestart() { if (ready && phase != Phase.Selecting) Restart(); }
     }
 }

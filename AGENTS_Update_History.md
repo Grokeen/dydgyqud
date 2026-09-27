@@ -65,3 +65,9 @@ HUD 체력 게이지와 전투원 체력바가 피해·회복에 즉시 튀지 �
 Unity 실행 로그에서 메인 화면의 맵 카드 생성 중 발생한 NullReferenceException을 확인했습니다. FortressHud의 필드 초기화 단계에서 호출하던 맵 미리보기 Resources.Load를 Bind 런타임 초기화로 옮겨 직렬화 오류를 없애고, 미리보기 누락 시에도 카드가 생성되도록 방어 처리를 추가했습니다. 관련 소스 주석에 원인과 처리 시점을 기록했습니다. 정적 코드와 Unity 로그를 확인했으며, 수정 후 Unity 재실행 검증은 하지 않았습니다. vscode 작업 기록 규칙을 적용했습니다.
 ## 2026-09-27 21:47:40 (KST) · 코덱스orig
 Unity Editor.log(21:42 기록)에서 FortressHud 직렬화 중 Resources.Load 예외와 메인 메뉴 생성 중 NullReferenceException을 확인했습니다. 현재 공유 소스에는 다른 Codex가 21:45에 적용한 지연 로드 및 미리보기 누락 방어 처리가 반영되어 있어 UI 담당 파일을 중복 수정하지 않았습니다. 동일 프로젝트를 사용 중인 Unity 인스턴스가 있어 별도 Play Mode 검증 실행은 차단됐습니다. 기존 로그는 수정 이전 기록이며 새 실행 로그로 재발 여부를 확인하지 못했습니다. vscode 작업 기록 규칙을 적용했습니다.
+
+## 2026-09-27 22:02:27 (KST) · 코덱스orig
+pull 및 병합 진행 상태에서 Unity 로그를 다시 확인했습니다. 21:52 이전 Editor 로그에는 FortressHud의 Resources.Load 직렬화 예외와 맵 카드 NullReferenceException이 남아 있지만, 현재 FortressHud는 리소스를 Bind 단계에서 불러오며 미리보기 누락도 방어합니다. 21:54의 새 Editor 로그에서는 씬을 열고 Play Mode에 진입할 때 게임 코드 예외가 재발하지 않았습니다. FortressHud와 다른 병합 대상 파일은 충돌 상태이므로 수정하지 않았습니다. Unity Cloud 계정 API 경고는 별도로 기록됐으나 게임 코드 예외는 아닙니다. vscode 작업 기록 규칙을 적용했습니다.
+
+## 2026-09-27 22:06:51 (KST) · 코덱스code(CodexCode)
+origin/main pull 병합에서 FortressCard.cs, FortressGame.Cards.cs, FortressGame.cs, FortressHud.cs 충돌을 정리했습니다. pull 버전의 스테이지 진행/보상 선택/카드 희귀도와 덱 구성, HUD 기능을 유지하고, 로컬의 맵 메뉴/미리보기 지연 로드와 궁수 전용 효과를 통합했습니다. 양쪽 카드 드로우 중복 구현을 공용 덱 로직 하나로 합치고, 새 보상 효과를 전투 처리에 연결했습니다. 충돌 표식 제거와 Unity Assembly-CSharp 빌드를 확인했으며 컴파일 오류 0건입니다(편집기 코드의 기존 경고 12건). Unity Play Mode는 실행하지 않았습니다. vscode 작업 기록 규칙을 적용했습니다.
