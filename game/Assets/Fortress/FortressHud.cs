@@ -11,6 +11,10 @@ namespace MiniFortress
         const string GameTitle = "월하요새: 최후의 궤적";
         const float AimWheelUnitsPerNotch = 120f;
         const float AimWheelDegreesPerNotch = 3f;
+        const float CameraZoomUnitsPerNotch = 120f;
+        const float CameraZoomFactorPerNotch = .9f;
+        const float MinCameraZoomSize = 8f;
+        const float MaxCameraZoomSize = 48f;
         public FortressGame game;
         public RawImage battlefield;
         public GameObject selectionPanel, battlePanel, resultPanel;
@@ -51,7 +55,7 @@ namespace MiniFortress
         Text arrowCountLabel;
         Button arrowCountDown, arrowCountUp;
         Sprite[] mapPreviewSprites;
-        float aimWheelRemainder;
+        float aimWheelRemainder, cameraZoomWheelRemainder;
 
         public void ToggleSettings() { if (settingsPanel) settingsPanel.SetActive(!settingsPanel.activeSelf); }
 
@@ -345,14 +349,35 @@ namespace MiniFortress
 
         void Update()
         {
-            if (!game || !game.Ready || !game.CanAim || (settingsPanel && settingsPanel.activeSelf))
+            if (!game || !game.Ready || (settingsPanel && settingsPanel.activeSelf))
             {
                 aimWheelRemainder = 0;
+                cameraZoomWheelRemainder = 0;
                 return;
             }
 
             var mouse = Mouse.current;
             if (mouse == null) return;
+            var keyboard = Keyboard.current;
+            bool controlHeld = keyboard != null && (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed);
+            if (controlHeld)
+            {
+                aimWheelRemainder = 0;
+                cameraZoomWheelRemainder += mouse.scroll.ReadValue().y / CameraZoomUnitsPerNotch;
+                int zoomNotches = cameraZoomWheelRemainder > 0
+                    ? Mathf.FloorToInt(cameraZoomWheelRemainder) : Mathf.CeilToInt(cameraZoomWheelRemainder);
+                if (zoomNotches == 0) return;
+                cameraZoomWheelRemainder -= zoomNotches;
+                game.AdjustCameraZoom(Mathf.Pow(CameraZoomFactorPerNotch, zoomNotches), MinCameraZoomSize, MaxCameraZoomSize);
+                return;
+            }
+
+            cameraZoomWheelRemainder = 0;
+            if (!game.CanAim)
+            {
+                aimWheelRemainder = 0;
+                return;
+            }
             aimWheelRemainder += mouse.scroll.ReadValue().y / AimWheelUnitsPerNotch;
             int notches = aimWheelRemainder > 0 ? Mathf.FloorToInt(aimWheelRemainder) : Mathf.CeilToInt(aimWheelRemainder);
             if (notches == 0) return;

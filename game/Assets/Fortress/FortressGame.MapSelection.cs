@@ -70,12 +70,27 @@ namespace MiniFortress
                 new[] { false, true, false, true, false, false, true, true, false },
                 new Vector2(8, 25),
                 new[] { new Vector2(27, 17), new Vector2(43, 21), new Vector2(74, 22), new Vector2(94, 27) },
-                new[] { "서쪽 성벽 경비병", "무너진 탑 수비병", "동쪽 균열 사수", "폐허의 대장" })
+                new[] { "서쪽 성벽 경비병", "무너진 탑 수비병", "동쪽 균열 사수", "폐허의 대장" }),
+            // 코덱스orig: 기존 FortressBattle 씬의 지형·스폰과 CitadelArena 배경을 독립된 선택지로 복원합니다.
+            new MapPreset("기존 성채 전장", "처음 전장의 성채·협곡·대교 배치", "FortressArt/CitadelArena", new Color(.9f, .94f, 1f),
+                new[]
+                {
+                    PlatformRect(-3, 18.3f, 24.7f, -14), PlatformRect(18.3f, 32.7f, 6.9f, -14),
+                    PlatformRect(38.3f, 52f, 8.6f, -14), PlatformRect(18.3f, 63f, 18.4f, 17.7f),
+                    PlatformRect(63f, 81.5f, 28.5f, -14), PlatformRect(81.5f, 103f, 6.9f, -14),
+                    PlatformRect(92f, 103f, 17f, 16f), PlatformRect(54f, 58f, 22f, 18.4f),
+                    PlatformRect(58f, 63f, 24.5f, 18.4f)
+                },
+                new[] { false, false, false, true, false, false, true, false, false },
+                new Vector2(9, 24.7f),
+                new[] { new Vector2(46, 18.4f), new Vector2(72, 28.5f), new Vector2(97, 17), new Vector2(85, 6.9f) },
+                new[] { "다리 파수꾼", "성채 대장", "절벽 사수", "하단 경비병" })
         };
 
         FortressTerrain[] mapTerrain;
         FortressSpawnPoint[] mapEnemySpawns;
-        Transform[] mapPlatformVisuals;
+        Transform[] mapPlatformVisuals, mapPlatformTopVisuals;
+        Transform[] spawnShadows, spawnFootprints;
         int selectedMap;
 
         static Rect PlatformRect(float left, float right, float top, float bottom)
@@ -95,9 +110,27 @@ namespace MiniFortress
             if (!backdrop) backdrop = arena.background.gameObject.AddComponent<FortressCameraBackdrop>();
             backdrop.Follow(worldCamera);
             mapPlatformVisuals = new Transform[mapTerrain.Length];
+            mapPlatformTopVisuals = new Transform[mapTerrain.Length];
             for (int i = 0; i < mapTerrain.Length; i++)
+            {
                 mapPlatformVisuals[i] = Shape("Map platform " + mapTerrain[i].name, Vector2.zero, Vector2.one,
-                    new Color(.12f, .17f, .2f, .94f), -19);
+                    new Color(.12f, .17f, .2f, .98f), -19);
+                mapPlatformTopVisuals[i] = Shape("Map platform top " + mapTerrain[i].name, Vector2.zero, Vector2.one,
+                    Color.white, -18);
+            }
+
+            // CodexCode: show a soft contact shadow and color-coded footprint at every map spawn so feet read as grounded.
+            int spawnCount = mapEnemySpawns.Length + 1;
+            spawnShadows = new Transform[spawnCount];
+            spawnFootprints = new Transform[spawnCount];
+            for (int i = 0; i < spawnCount; i++)
+            {
+                spawnShadows[i] = ArtObject(transform, "Spawn Contact Shadow " + i, arena.effectSprite, Vector2.zero, -17);
+                spawnShadows[i].localScale = new Vector3(2.8f, .66f, 1);
+                spawnShadows[i].GetComponent<SpriteRenderer>().color = new Color(.015f, .025f, .035f, .88f);
+                Color footprintColor = i == 0 ? new Color(1f, .63f, .2f, .95f) : new Color(.32f, .8f, .94f, .92f);
+                spawnFootprints[i] = Shape("Spawn Footprint " + i, Vector2.zero, new Vector2(1.65f, .1f), footprintColor, -16);
+            }
         }
 
         public void SelectMap(int index)
@@ -133,16 +166,21 @@ namespace MiniFortress
                 collider.size = rect.size;
                 mapTerrain[i].allowDropThrough = i < preset.dropThrough.Length && preset.dropThrough[i];
 
-                mapPlatformVisuals[i].position = new Vector3(rect.center.x, rect.yMax - .13f, 0);
-                mapPlatformVisuals[i].localScale = new Vector3(rect.width, .26f, 1);
-                mapPlatformVisuals[i].GetComponent<SpriteRenderer>().color = preset.tint * new Color(.34f, .39f, .42f, .88f);
+                mapPlatformVisuals[i].position = new Vector3(rect.center.x, rect.yMax - .25f, 0);
+                mapPlatformVisuals[i].localScale = new Vector3(rect.width, .5f, 1);
+                mapPlatformVisuals[i].GetComponent<SpriteRenderer>().color = preset.tint * new Color(.3f, .34f, .4f, .98f);
+                mapPlatformTopVisuals[i].position = new Vector3(rect.center.x, rect.yMax - .055f, -.01f);
+                mapPlatformTopVisuals[i].localScale = new Vector3(rect.width, .11f, 1);
+                mapPlatformTopVisuals[i].GetComponent<SpriteRenderer>().color = preset.tint * new Color(.88f, .82f, .68f, 1f);
             }
 
             arena.playerSpawn.position = new Vector3(preset.player.x, preset.player.y, 0);
+            SetSpawnFootprint(0, preset.player);
             int enemyCount = Mathf.Min(mapEnemySpawns.Length, preset.enemies.Length);
             for (int i = 0; i < enemyCount; i++)
             {
                 mapEnemySpawns[i].transform.position = new Vector3(preset.enemies[i].x, preset.enemies[i].y, 0);
+                SetSpawnFootprint(i + 1, preset.enemies[i]);
                 if (i < preset.enemyNames.Length) mapEnemySpawns[i].displayName = preset.enemyNames[i];
             }
 
@@ -154,6 +192,14 @@ namespace MiniFortress
             else Debug.LogWarning("FortressGame: 맵 배경 이미지를 찾을 수 없습니다: " + preset.backgroundResource, this);
             arena.background.color = Color.white;
             worldCamera.backgroundColor = new Color(.035f, .055f, .09f);
+        }
+
+        void SetSpawnFootprint(int index, Vector2 feet)
+        {
+            if (spawnShadows == null || index < 0 || index >= spawnShadows.Length) return;
+            Vector3 position = new Vector3(feet.x, feet.y + .025f, -.02f);
+            spawnShadows[index].position = position;
+            spawnFootprints[index].position = new Vector3(feet.x, feet.y + .045f, -.03f);
         }
 
         // 코덱스orig: 맵을 추가하거나 발판 높이를 바꾸면 플레이어와 적의 발밑을 검사해 낙하 시작 배치를 미리 찾습니다.

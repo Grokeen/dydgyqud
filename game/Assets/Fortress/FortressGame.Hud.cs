@@ -64,6 +64,13 @@ namespace MiniFortress
         public void RequestPlayCard(int index) { if (ready) PlayCard(index); }
         public void SetAngle(float value)
         { if (phase == Phase.Aim && !playerHasAttacked) fighters[0].angle = Mathf.Clamp(value, Rules.angleLimits.x, Rules.angleLimits.y); }
+        // CodexCode: keep the requested zoom as the camera's resting size so trajectory framing returns to the chosen zoom.
+        public void AdjustCameraZoom(float scale, float minimum, float maximum)
+        {
+            if (!ready || worldCamera == null || !worldCamera.orthographic) return;
+            cameraSize = Mathf.Clamp(cameraSize * scale, minimum, maximum);
+            worldCamera.orthographicSize = cameraSize;
+        }
         public void SetPower(float value)
         { if (phase == Phase.Aim && !playerHasAttacked) fighters[0].power = Mathf.Clamp(value, Rules.powerLimits.x, Rules.powerLimits.y); }
         public void SetMoveInput(float value) => mouseMove = Mathf.Clamp(value, -1, 1);
