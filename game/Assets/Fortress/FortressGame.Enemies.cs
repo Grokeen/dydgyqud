@@ -118,7 +118,6 @@ namespace MiniFortress
             float next = Mathf.MoveTowards(enemy.feet.x, enemyMoveTarget, EnemyMoveSpeed * Mathf.Clamp(dt, 0, 0.05f));
             bool blocked = !EnemyCanStand(current, next);
             if (!blocked) { enemyMoveSpent += Mathf.Abs(next - enemy.feet.x); enemy.feet.x = next; }
-            TriggerArrowTraps(current);
             if (blocked || Mathf.Abs(enemy.feet.x - enemyMoveTarget) < 0.01f)
             {
                 if (enemyMovingAfterAttack) NextTurn();

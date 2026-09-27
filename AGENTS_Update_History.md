@@ -80,3 +80,6 @@ FortressBattle 씬과 이전 맵 에셋을 대조해 사라진 기존 맵이 Cit
 기존 마우스 휠 발사 각도 입력을 유지하면서 Ctrl+휠은 별도 확대 입력으로 분기했습니다. 확대는 휠 한 칸마다 화면을 단계 조절하고, 직교 카메라 선호 크기에도 기록해 사격 궤적 연출 후에도 유지되며 8~48 범위로 제한됩니다. 입력 처리는 FortressHud.cs와 FortressGame.Hud.cs에만 반영해 맵/씬/레이아웃 작업 파일과 분리했습니다. Unity C# 빌드 오류 0건을 확인했습니다(기존 편집기 코드 경고 12건). Play Mode 입력 확인은 하지 않았습니다. vscode 작업 기록 규칙을 적용했습니다.
 ## 2026-09-27 22:45:00 (KST) · 코덱스code(CodexCode)
 pull로 들어온 전투 구조가 기존 궁수 카드 모듈과 겹쳐 컴파일 오류를 일으키던 구간을 정리했습니다. pull의 화살 일제 발사·회수·출혈 카드 처리와 스테이지 보상 UI를 유지하고, 이전 선택 발사 모듈 및 방어도 표시 의존성을 제거했습니다. 로컬 맵 선택 메뉴와 Ctrl+휠 확대/마우스 휠 각도 조절은 HUD에 남겼습니다. Unity 배치 실행은 라이선스 서비스 연결 지연으로 컴파일 결과를 얻지 못했고, dotnet SDK도 설치되어 있지 않아 빌드 검증이 제한됐습니다. 충돌 표식 및 참조 정적 검토를 이어가고 있습니다. vscode 작업 기록 규칙을 적용했습니다.
+
+## 2026-09-27 23:05:00 (KST) · 코덱스code(CodexCode)
+현재 pull 병합본을 Unity 프로젝트의 SDK로 직접 컴파일해 발견된 잔여 충돌 참조를 수정했습니다. 구 버전 궁수의 회피/덫/턴 출혈 참조가 남아 있던 FortressGame.Turns.cs와 FortressGame.Enemies.cs, pull 카드 모델과 어긋난 FortressCharacterDefinition.cs를 origin/main 구현에 맞췄습니다. Unity 자동 생성 IDE 프로젝트의 오래된 궁수 파일 경로를 위한 빈 partial 호환 파일을 두고, 분리된 pull 스크립트(Arrows/Bleed/Volley)를 컴파일 대상에 포함해 Assembly-CSharp 빌드 오류 0건을 확인했습니다. 편집기 쪽 기존 경고 12건은 남아 있으며 Play Mode는 실행하지 않았습니다. vscode 작업 기록 규칙을 적용했습니다.

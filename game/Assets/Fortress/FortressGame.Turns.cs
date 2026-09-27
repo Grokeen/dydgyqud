@@ -14,8 +14,6 @@ namespace MiniFortress
             if (current == 0)
             {
                 phase = Phase.Aim;
-                if (activeEvasion) { moveRemaining += 2; activeEvasion = false; message += " · 회피 기동 2U 추가"; }
-                activeRain = activeSplitShot = false; hasOutpostOrigin = false;
                 message += " · 남은 이동 후 '턴 넘기기'를 누르세요.";
             }
             else if (!TryEnemyRepositionAfterAttack()) NextTurn();
@@ -32,7 +30,6 @@ namespace MiniFortress
             burst.gameObject.SetActive(false);
             if (fighters[0].hp <= 0) { Finish(false); return; }
             if (EnemiesAlive() == 0) { Finish(true); return; }
-            if (current > 0) TickEnemyBleed(current);
             do { current++; } while (current < fighters.Count && fighters[current].hp <= 0);
             if (current >= fighters.Count)
             {
