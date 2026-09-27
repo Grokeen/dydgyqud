@@ -170,7 +170,7 @@ namespace MiniFortress
             }
             else if (phase == Phase.EnemyMove) UpdateEnemyMovement(dt);
             else if (phase == Phase.EnemyAim) { timer -= dt; if (timer <= 0) Fire(current); }
-            if (VolleyInFlight || volleyPuffs.Count > 0) UpdateVolley(dt);
+            if (VolleyEffectsActive) UpdateVolley(dt);
             UpdatePoses(dt);
             UpdateShotTrail(Time.deltaTime);
         }

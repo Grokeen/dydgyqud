@@ -45,9 +45,11 @@ namespace MiniFortress
         [Tooltip("카드를 추가로 뽑을 때 손패가 이 수를 넘지 않습니다.")]
         [Min(1)] public int maxHandSize = 8;
         [Min(1)] public float criticalMultiplier = 2;
-        [Tooltip("연사 시 다음 화살이 같은 각도로 뒤따라 발사되는 간격(초)")]
-        [Min(0)] public float volleyInterval = .12f;
-        [Tooltip("연사 시 화살마다 벌어지는 각도")]
-        [Min(0)] public float volleySpread = 4f;
+        [Tooltip("연사 시 다음 화살이 뒤따라 발사되는 간격(초)")]
+        [Min(0)] public float volleyInterval = .22f;
+        [Tooltip("연사 시 두 번째 화살부터 흔들리는 각도(±도)")]
+        [Min(0)] public float volleyAngleJitter = 1.5f;
+        [Tooltip("연사 시 두 번째 화살부터 흔들리는 위력(±비율, 0.04 = 4%)")]
+        [Min(0)] public float volleyPowerJitter = .04f;
     }
 }
