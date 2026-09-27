@@ -52,6 +52,16 @@ public sealed class FortressPreview : IDisposable
         var painting = Object.Instantiate(arena.background, worldRoot.transform);
         painting.transform.SetPositionAndRotation(arena.background.transform.position, arena.background.transform.rotation);
         painting.transform.localScale = arena.background.transform.lossyScale;
+        // Terrain pieces carry their own art; copy only the renderers, never the colliders or prefab links.
+        foreach (var source in arena.terrainRoot.GetComponentsInChildren<SpriteRenderer>())
+        {
+            var copy = new GameObject(source.name).AddComponent<SpriteRenderer>();
+            copy.transform.SetParent(worldRoot.transform, false);
+            copy.transform.SetPositionAndRotation(source.transform.position, source.transform.rotation);
+            copy.transform.localScale = source.transform.lossyScale;
+            copy.sprite = source.sprite; copy.color = source.color; copy.flipX = source.flipX; copy.flipY = source.flipY;
+            copy.sortingLayerID = source.sortingLayerID; copy.sortingOrder = source.sortingOrder;
+        }
         foreach (var spawn in FortressPlacement.Spawns(arena))
         {
             var data = FortressPlacement.Definition(arena, spawn, selectedClass);

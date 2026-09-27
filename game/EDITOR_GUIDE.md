@@ -183,6 +183,21 @@ Body의 Sprite, 무기의 Sprite·위치·크기, 그림자 등을 수정할 수
 
 전투 상태의 최종 책임은 FortressGame에 남겨 두었습니다. `.Turns`, `.Enemies` 등은 같은 partial 클래스이며, 별도의 독립 컴포넌트라고 보면 안 됩니다. 배치·데이터·UI·입력은 별도 컴포넌트/에셋으로 분리했습니다.
 
+## 지형 조각 (재사용 가능한 발판)
+
+통 배경 그림을 절벽·다리·계단 같은 **지형 조각 이미지**와 **조각을 뺀 배경**으로 나눴습니다.
+
+| 경로 | 내용 |
+|---|---|
+| `Assets/FortressContent/Art/Terrain/*.png` | 배경이 투명한 조각 8개 (LeftCliff, LowerLeft, Bridge, Stairs, CenterPillar, RightCliff, RightLedge, LowerRight) |
+| `Assets/FortressContent/Art/CitadelBackdrop.png` | 조각을 지우고 안개로 메운 배경 |
+| `Assets/FortressContent/Prefabs/Terrain/*.prefab` | 조각 그림(`Art`) + 그 위의 충돌 영역(`FortressTerrain`)을 묶은 프리팹 |
+| `Tools/slice_citadel.py` | 조각을 다시 자르는 스크립트 (윤곽 좌표를 고친 뒤 `python Tools/slice_citadel.py`) |
+
+- 처음 한 번 `Mini Fortress → 지형 조각으로 전장 전환`을 실행하면 프리팹을 만들고, 씬의 기존 바닥을 프리팹으로 바꾸고, 배경을 `CitadelBackdrop`으로 교체합니다. 실행 후 씬을 저장하세요.
+- 새 맵은 프리팹을 `Terrain` 오브젝트 아래로 끌어다 놓아 구성합니다. 조각을 옮기면 그림과 충돌 영역이 같이 움직입니다.
+- 발판 높이나 폭은 프리팹 안의 `FortressTerrain`에서 `Edit Collider`로 맞춥니다. 프리팹을 고치면 그 조각을 쓰는 모든 맵에 반영됩니다.
+- 조각은 `Order in Layer` -10(배경 -20, 캐릭터 12)에 그려집니다.
 ## 검증
 
 `Window → General → Test Runner`의 PlayMode에서 `FortressPlayModeTests`를 실행할 수 있습니다. 테스트는 `FortressBattle`이 빌드 씬 목록에 등록된 상태에서 실행합니다.

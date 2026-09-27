@@ -1,0 +1,63 @@
+{
+  "source": "Citadel.png",
+  "width": 1672,
+  "height": 941,
+  "pieces": [
+    {
+      "name": "Stairs",
+      "x": 893,
+      "y": 336,
+      "width": 155,
+      "height": 112
+    },
+    {
+      "name": "Bridge",
+      "x": 338,
+      "y": 329,
+      "width": 700,
+      "height": 284
+    },
+    {
+      "name": "RightCliff",
+      "x": 990,
+      "y": 179,
+      "width": 366,
+      "height": 762
+    },
+    {
+      "name": "LeftCliff",
+      "x": 0,
+      "y": 1,
+      "width": 354,
+      "height": 940
+    },
+    {
+      "name": "LowerLeft",
+      "x": 299,
+      "y": 584,
+      "width": 272,
+      "height": 357
+    },
+    {
+      "name": "CenterPillar",
+      "x": 644,
+      "y": 549,
+      "width": 265,
+      "height": 392
+    },
+    {
+      "name": "RightLedge",
+      "x": 1489,
+      "y": 359,
+      "width": 183,
+      "height": 272
+    },
+    {
+      "name": "LowerRight",
+      "x": 1339,
+      "y": 577,
+      "width": 333,
+      "height": 364
+    }
+  ]
+}

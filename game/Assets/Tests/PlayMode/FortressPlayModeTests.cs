@@ -55,7 +55,11 @@ public sealed class FortressPlayModeTests
     public IEnumerator EditedTerrainAndSpawnDriveLandingAndProjectiles()
     {
         var arena = Object.FindAnyObjectByType<FortressArena>();
-        var platform = arena.terrainRoot.GetChild(0).GetComponent<FortressTerrain>();
+        FortressTerrain platform = null;
+        foreach (var candidate in arena.terrainRoot.GetComponentsInChildren<FortressTerrain>())
+            if (candidate.WorldRect.xMin <= arena.playerSpawn.position.x && candidate.WorldRect.xMax >= arena.playerSpawn.position.x
+                && Mathf.Abs(candidate.WorldRect.yMax - arena.playerSpawn.position.y) < .05f) platform = candidate;
+        Assert.That(platform, Is.Not.Null);
         platform.transform.position += Vector3.up * 2;
         arena.playerSpawn.position += Vector3.up * 2;
         Call("LoadArenaLayout"); game.BeginBattle();
