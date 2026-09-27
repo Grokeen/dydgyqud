@@ -230,7 +230,8 @@ public static class FortressHudLayout
         view.cost.alignment = TextAnchor.MiddleCenter; view.cost.color = new Color(.08f, .06f, .03f); view.cost.fontStyle = FontStyle.Bold;
         view.title = B.Label(frame.transform, "Title", "카드 이름", 46, 10, w - 54, 28, 15);
         view.title.alignment = TextAnchor.MiddleCenter; view.title.fontStyle = FontStyle.Bold;
-        var art = B.Picture(frame.transform, "Art (drop a sprite here)", 8, 48, w - 16, 112); art.color = ArtColor; art.preserveAspect = false;
+        var art = B.Picture(frame.transform, "Art (drop a sprite here)", 8, 48, w - 16, 112); art.color = ArtColor; art.preserveAspect = true;
+        view.artwork = art;
         view.description = B.Label(frame.transform, "Description", "카드 설명", 10, 166, w - 20, h - 176, 13);
         view.description.alignment = TextAnchor.UpperCenter;
         view.description.horizontalOverflow = HorizontalWrapMode.Wrap;

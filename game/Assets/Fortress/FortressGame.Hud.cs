@@ -8,6 +8,7 @@ namespace MiniFortress
         public bool Ready => ready;
         public FortressBattleRules Rules => arena.rules;
         public FortressCharacterDefinition[] Classes => arena.playerClasses;
+        public FortressCardEntry[] CardPool => fighters[0].definition.CardPool;
         public RenderTexture BattlefieldTexture => pixelFrame;
         public Camera WorldCamera => worldCamera;
         public int SelectedClass => highlightedClass;
@@ -34,14 +35,14 @@ namespace MiniFortress
         public struct ActorInfo
         {
             public string name;
-            public int hp, maxHp;
+            public int hp, maxHp, armor, bleed;
             public Sprite portrait;
             public Vector3 head;
         }
         public ActorInfo GetActor(int index)
         {
             var f = fighters[index];
-            return new ActorInfo { name = f.name, hp = f.hp, maxHp = f.maxHp, portrait = f.definition.portrait,
+            return new ActorInfo { name = f.name, hp = f.hp, maxHp = f.maxHp, armor = f.armor, bleed = f.bleed, portrait = f.definition.portrait,
                 head = f.feet + Vector2.up * (Height(f) + .45f) };
         }
         public int CardEnergy => energy;
@@ -53,8 +54,10 @@ namespace MiniFortress
         public string PendingAttackBuffs => PendingBuffText();
         public string CardTitle(int index) => hand[index].title;
         public string CardDescription(int index) => hand[index].Description;
+        public Sprite CardArtwork(int index) => fighters[0].definition.weapon == FortressWeapon.Bow ? hand[index].Artwork : null;
         public int CardCost(int index) => hand[index].cost;
         public bool CanPlayCard(int index) => CanPlay(index);
+        public bool CanChangeShotCount => phase == Phase.Aim && !playerHasAttacked && fighters[0].definition.weapon == FortressWeapon.Bow;
         public void RequestPlayCard(int index) { if (ready) PlayCard(index); }
         public void SetAngle(float value)
         { if (phase == Phase.Aim && !playerHasAttacked) fighters[0].angle = Mathf.Clamp(value, Rules.angleLimits.x, Rules.angleLimits.y); }

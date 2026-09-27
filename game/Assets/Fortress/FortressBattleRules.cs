@@ -24,6 +24,6 @@ namespace MiniFortress
         [Min(1)] public int handSize = 5;
         [Min(1)] public float criticalMultiplier = 2;
         [Tooltip("연사 시 화살마다 벌어지는 각도")]
-        [Min(0)] public float volleySpread = 2.5f;
+        [Min(0)] public float volleySpread = 4f;
     }
 }

@@ -10,6 +10,8 @@ namespace MiniFortress
         public Button button;
         public Color selectedColor = new Color(.09f, .2f, .25f);
         public Color normalColor = new Color(.035f, .07f, .095f);
+        Image[] frameEdges;
+
         public void Show(FortressCharacterDefinition definition, bool selected)
         {
             portrait.sprite = definition.portrait;
@@ -18,7 +20,9 @@ namespace MiniFortress
             description.text = definition.description;
             border.color = selected ? selectedColor : normalColor;
             var outline = border.GetComponent<Outline>();
-            if (outline) outline.effectColor = selected ? new Color(.8f, .65f, .3f) : new Color(.25f, .35f, .4f);
+            if (outline) outline.enabled = false;
+            FortressUiFrame.Ensure(ref frameEdges, border.transform, "Selection Frame");
+            FortressUiFrame.Set(frameEdges, selected ? new Color(.98f, .72f, .3f) : new Color(.27f, .4f, .46f), selected ? 3.5f : 2f);
         }
     }
 }

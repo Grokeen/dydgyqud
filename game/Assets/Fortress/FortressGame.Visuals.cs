@@ -24,7 +24,7 @@ namespace MiniFortress
             view.name = string.IsNullOrWhiteSpace(displayName) ? definition.displayName : displayName;
             return new Fighter {
                 definition = definition, name = view.name, feet = feet, previousFeet = feet,
-                hp = definition.health, maxHp = definition.health, root = view.transform,
+                hp = definition.health, maxHp = definition.health, armor = definition.armor, maxArmor = definition.armor, root = view.transform,
                 motion = view.motion, aimPivot = view.aimPivot, weaponMotion = view.weaponMotion,
                 weapon = view.weapon, loadedArrow = view.loadedProjectile, body = view.body, animator = view.animator
             };

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace MiniFortress
@@ -7,6 +8,9 @@ namespace MiniFortress
     [DefaultExecutionOrder(100)]
     public sealed class FortressHud : MonoBehaviour
     {
+        const string GameTitle = "월하요새: 최후의 궤적";
+        const float AimWheelUnitsPerNotch = 120f;
+        const float AimWheelDegreesPerNotch = 3f;
         public FortressGame game;
         public RawImage battlefield;
         public GameObject selectionPanel, battlePanel, resultPanel;
@@ -33,11 +37,21 @@ namespace MiniFortress
         [Header("Gauges")]
         public Image healthFill, moveFill, powerFill;
         public Text healthText, moveText;
+        float displayedPlayerHealth;
+        bool playerHealthInitialized;
+        GameObject mainMenuPanel;
+        readonly List<Image> mapChoiceImages = new List<Image>();
+        readonly List<Outline> mapChoiceOutlines = new List<Outline>();
+        Text arrowCountLabel;
+        Button arrowCountDown, arrowCountUp;
+        Sprite[] mapPreviewSprites;
+        float aimWheelRemainder;
 
         public void ToggleSettings() { if (settingsPanel) settingsPanel.SetActive(!settingsPanel.activeSelf); }
 
         public void Bind()
         {
+            LoadMapPreviewSprites();
             BindCards();
             classCardTemplate.gameObject.SetActive(false);
             turnTemplate.gameObject.SetActive(false);
@@ -57,14 +71,209 @@ namespace MiniFortress
                 var turn = Instantiate(turnTemplate, turnRoot); turn.gameObject.SetActive(true); turns.Add(turn);
                 var health = Instantiate(healthTemplate, healthRoot); health.gameObject.SetActive(true); healthBars.Add(health);
             }
+            var gameTitle = battlePanel.transform.Find("Top Bar/Game Title")?.GetComponent<Text>();
+            if (gameTitle) gameTitle.text = GameTitle;
+            BuildArrowCountControls();
+            BuildMainMenu();
+        }
+
+        // 코덱스code(CodexCode): Unity 직렬화 중 Resources.Load를 호출하면 에디터가 컴포넌트를 복원하는 동안 예외가 납니다.
+        // 씬 런타임 초기화(Bind)에서 지연 로드하고, 누락된 리소스는 카드의 기본 배경으로 표시합니다.
+        void LoadMapPreviewSprites()
+        {
+            mapPreviewSprites = new[]
+            {
+                Resources.Load<Sprite>("FortressMapPreviews/MoonlitFortress"),
+                Resources.Load<Sprite>("FortressMapPreviews/MoonlitRavine"),
+                Resources.Load<Sprite>("FortressMapPreviews/BrokenRamparts")
+            };
+        }
+
+        // 코덱스code(CodexCode): 궁수 본사격의 발사량을 1발 단위로 정하는 UI입니다. 소모량과 실제 화살 발사는 FortressGame이 처리합니다.
+        void BuildArrowCountControls()
+        {
+            if (!fireButton) return;
+            var fireRect = (RectTransform)fireButton.transform;
+            float x = fireRect.anchoredPosition.x;
+            float y = -fireRect.anchoredPosition.y - 30;
+            float width = fireRect.rect.width;
+            var parent = fireButton.transform.parent;
+            arrowCountDown = MenuControlButton(parent, "Arrow Count Down", "−", x, y, 34, 24, () => game.SetShotCount(game.ShotCount - 1));
+            arrowCountUp = MenuControlButton(parent, "Arrow Count Up", "+", x + width - 34, y, 34, 24, () => game.SetShotCount(game.ShotCount + 1));
+            var labelRect = Box(parent, "Arrow Count", x + 36, y, Mathf.Max(42, width - 72), 24);
+            arrowCountLabel = labelRect.gameObject.AddComponent<Text>();
+            arrowCountLabel.font = messageText.font; arrowCountLabel.fontSize = 13;
+            arrowCountLabel.color = new Color(.9f, .84f, .65f); arrowCountLabel.alignment = TextAnchor.MiddleCenter;
+            arrowCountLabel.raycastTarget = false;
+        }
+
+        Button MenuControlButton(Transform parent, string name, string label, float x, float y, float width, float height, UnityEngine.Events.UnityAction action)
+        {
+            var rect = Box(parent, name, x, y, width, height);
+            var image = rect.gameObject.AddComponent<Image>(); image.color = new Color(.12f, .18f, .21f, .98f);
+            var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            button.onClick.AddListener(action);
+            MenuLabel(rect, "Label", label, 0, 0, width, height, 16, new Color(.96f, .91f, .79f), FontStyle.Bold);
+            return button;
+        }
+
+        void BuildMainMenu()
+        {
+            var canvasRoot = selectionPanel.transform.parent;
+            var overlayRect = Box(canvasRoot, "Main Menu", 0, 0, 1600, 900);
+            overlayRect.anchorMin = Vector2.zero; overlayRect.anchorMax = Vector2.one;
+            overlayRect.pivot = new Vector2(.5f, .5f); overlayRect.anchoredPosition = Vector2.zero;
+            overlayRect.offsetMin = overlayRect.offsetMax = Vector2.zero;
+            mainMenuPanel = overlayRect.gameObject;
+            var shade = mainMenuPanel.AddComponent<Image>();
+            shade.color = new Color(.012f, .02f, .035f, .78f);
+
+            var frame = Box(mainMenuPanel.transform, "Menu Frame", 0, 0, 1000, 840);
+            frame.anchorMin = frame.anchorMax = frame.pivot = new Vector2(.5f, .5f);
+            frame.anchoredPosition = Vector2.zero;
+            var plate = frame.gameObject.AddComponent<Image>();
+            plate.color = new Color(.025f, .045f, .06f, .97f);
+            Image[] frameEdges = null;
+            FortressUiFrame.Ensure(ref frameEdges, frame, "Menu Border");
+            FortressUiFrame.Set(frameEdges, new Color(.75f, .52f, .21f, .95f), 2.5f);
+
+            MenuLabel(frame, "Edition", "FORTRESS STRATEGY  ·  BALLISTIC COMBAT", 120, 54, 760, 28, 15,
+                new Color(.79f, .64f, .38f), FontStyle.Bold);
+            MenuLabel(frame, "Game Title", GameTitle, 80, 104, 840, 82, 50,
+                new Color(.94f, .92f, .84f), FontStyle.Bold);
+            MenuLabel(frame, "Tagline", "한 발의 궤적이 성벽의 운명을 가른다", 120, 190, 760, 42, 24,
+                new Color(.78f, .83f, .82f), FontStyle.Normal);
+            MenuShape(frame, "Title Rule", 180, 255, 640, 2, new Color(.63f, .43f, .18f, .8f));
+            MenuLabel(frame, "Description", "전략 카드로 전황을 바꾸고, 각도를 겨눠 월하요새를 지켜라.",
+                110, 282, 780, 54, 19, new Color(.73f, .78f, .79f), FontStyle.Normal);
+
+            MenuFeature(frame, "01", "전략 카드", "전술을 고르고 에너지를 관리", 116);
+            MenuFeature(frame, "02", "포물선 조준", "각도와 충전으로 한 발을 설계", 386);
+            MenuFeature(frame, "03", "요새 수호", "움직이고 버티며 적을 격파", 656);
+            MenuLabel(frame, "Map Heading", "전장을 선택하세요", 120, 474, 760, 30, 18,
+                new Color(.82f, .72f, .5f), FontStyle.Bold);
+            for (int i = 0; i < game.MapCount; i++) CreateMapChoice(frame, i, 104 + i * 266, 508, 258, 192);
+            CreateMenuButton(frame, "출전 준비", 340, 710, 320, 58);
+            MenuLabel(frame, "Footer", "맵과 캐릭터를 선택하고 전투를 시작하세요", 180, 778, 640, 26, 15,
+                new Color(.56f, .64f, .66f), FontStyle.Normal);
+            mainMenuPanel.transform.SetAsLastSibling();
+        }
+
+        void CreateMapChoice(Transform parent, int index, float x, float y, float width, float height)
+        {
+            var rect = Box(parent, "Map Choice " + index, x, y, width, height);
+            var image = rect.gameObject.AddComponent<Image>();
+            image.color = game.SelectedMap == index ? new Color(.28f, .23f, .14f) : new Color(.07f, .1f, .115f, .96f);
+            var button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            var colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, .88f, .62f);
+            colors.pressedColor = new Color(.78f, .68f, .48f);
+            button.colors = colors;
+            // 코덱스code(CodexCode) 작업 메모: Resources의 맵 미리보기 이미지를 카드 상단에 배치하고, 선택된 맵은 금색 테두리로 표시합니다.
+            var outline = rect.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(.92f, .69f, .3f, .95f);
+            outline.effectDistance = new Vector2(2, -2);
+            outline.enabled = game.SelectedMap == index;
+            int choice = index;
+            button.onClick.AddListener(() => game.SelectMap(choice));
+            var previewRect = Box(rect, "Map Preview", 0, 0, width, 138);
+            var preview = previewRect.gameObject.AddComponent<Image>();
+            preview.sprite = mapPreviewSprites != null && index >= 0 && index < mapPreviewSprites.Length
+                ? mapPreviewSprites[index] : null;
+            preview.preserveAspect = true;
+            preview.color = Color.white;
+            preview.raycastTarget = false;
+            MenuLabel(rect, "Name", game.MapName(index), 8, 140, width - 16, 24, 19,
+                new Color(.94f, .92f, .84f), FontStyle.Bold);
+            MenuLabel(rect, "Description", game.MapDescription(index), 8, 164, width - 16, 22, 13,
+                new Color(.68f, .76f, .77f), FontStyle.Normal);
+            mapChoiceImages.Add(image);
+            mapChoiceOutlines.Add(outline);
+        }
+
+        void UpdateMapChoiceHighlight()
+        {
+            for (int i = 0; i < mapChoiceImages.Count; i++)
+            {
+                mapChoiceImages[i].color = game.SelectedMap == i
+                    ? new Color(.28f, .23f, .14f) : new Color(.07f, .1f, .115f, .96f);
+                mapChoiceOutlines[i].enabled = game.SelectedMap == i;
+            }
+        }
+
+        void CreateMenuButton(Transform parent, string caption, float x, float y, float width, float height)
+        {
+            var rect = Box(parent, "Start Button", x, y, width, height);
+            var image = rect.gameObject.AddComponent<Image>();
+            image.color = new Color(.38f, .25f, .1f);
+            var button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            var colors = button.colors;
+            colors.normalColor = new Color(.38f, .25f, .1f);
+            colors.highlightedColor = new Color(.68f, .48f, .19f);
+            colors.pressedColor = new Color(.27f, .19f, .09f);
+            colors.selectedColor = colors.highlightedColor;
+            button.colors = colors;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            button.onClick.AddListener(CloseMainMenu);
+            MenuLabel(rect, "Label", caption, 0, 0, width, height, 24, new Color(.98f, .94f, .84f), FontStyle.Bold);
+        }
+
+        void CloseMainMenu()
+        {
+            if (mainMenuPanel) mainMenuPanel.SetActive(false);
+            if (selectionPanel) selectionPanel.SetActive(game && game.IsSelecting);
+        }
+
+        Text MenuLabel(Transform parent, string name, string value, float x, float y, float width, float height,
+            int size, Color color, FontStyle style)
+        {
+            var rect = Box(parent, name, x, y, width, height);
+            var text = rect.gameObject.AddComponent<Text>();
+            text.font = messageText.font;
+            text.fontSize = size; text.fontStyle = style; text.color = color; text.text = value;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
+            return text;
+        }
+
+        static Image MenuShape(Transform parent, string name, float x, float y, float width, float height, Color color)
+        {
+            var rect = Box(parent, name, x, y, width, height);
+            var image = rect.gameObject.AddComponent<Image>(); image.color = color; image.raycastTarget = false;
+            return image;
+        }
+
+        void MenuFeature(Transform parent, string number, string title, string detail, float x)
+        {
+            var card = Box(parent, "Feature " + number, x, 376, 228, 88);
+            var background = card.gameObject.AddComponent<Image>();
+            background.color = new Color(.07f, .1f, .115f, .92f); background.raycastTarget = false;
+            MenuLabel(card, "Number", number, 12, 10, 34, 22, 13, new Color(.82f, .61f, .29f), FontStyle.Bold);
+            MenuLabel(card, "Title", title, 10, 32, 208, 28, 18, new Color(.9f, .91f, .86f), FontStyle.Bold);
+            MenuLabel(card, "Detail", detail, 8, 61, 212, 22, 11, new Color(.62f, .7f, .71f), FontStyle.Normal);
         }
 
         void LateUpdate()
         {
             if (!game || !game.Ready || game.FighterCount == 0) return;
             bool selecting = game.IsSelecting;
-            selectionPanel.SetActive(selecting); battlePanel.SetActive(!selecting);
-            resultPanel.SetActive(game.IsFinished);
+            bool onMainMenu = mainMenuPanel && mainMenuPanel.activeSelf;
+            UpdateMapChoiceHighlight();
+            if (arrowCountLabel)
+            {
+                arrowCountLabel.text = $"화살 {game.Arrows}/{game.ArrowCapacity} · 발사 {game.ShotCount}";
+                arrowCountDown.interactable = game.CanChangeShotCount && game.ShotCount > 1;
+                arrowCountUp.interactable = game.CanChangeShotCount && game.ShotCount < game.Arrows;
+            }
+            selectionPanel.SetActive(selecting && !onMainMenu); battlePanel.SetActive(!selecting && !onMainMenu);
+            resultPanel.SetActive(game.IsFinished && !onMainMenu);
+            if (onMainMenu) return;
             if (selecting)
             {
                 for (int i = 0; i < cards.Count; i++) cards[i].Show(game.Classes[i], game.SelectedClass == i);
@@ -75,7 +284,18 @@ namespace MiniFortress
             // Gauges take over health and movement; the status text keeps whatever has no gauge.
             playerStatus.text = healthFill ? player.name : moveFill ? $"{player.name}\nHP {player.hp} / {player.maxHp}"
                 : $"{player.name}\nHP {player.hp} / {player.maxHp}\n이동 {game.MovementRemaining:0.0} / {game.PlayerMovementLimit:0.#} m";
-            if (healthFill) healthFill.fillAmount = player.maxHp > 0 ? player.hp / (float)player.maxHp : 0;
+            if (healthFill)
+            {
+                float targetHealth = player.maxHp > 0 ? Mathf.Clamp01(player.hp / (float)player.maxHp) : 0;
+                if (!playerHealthInitialized)
+                {
+                    displayedPlayerHealth = targetHealth;
+                    playerHealthInitialized = true;
+                }
+                else
+                    displayedPlayerHealth = Mathf.MoveTowards(displayedPlayerHealth, targetHealth, Time.unscaledDeltaTime * 1.6f);
+                healthFill.fillAmount = displayedPlayerHealth;
+            }
             if (healthText) healthText.text = $"{player.hp} / {player.maxHp}";
             if (moveFill) moveFill.fillAmount = game.PlayerMovementLimit > 0 ? game.MovementRemaining / game.PlayerMovementLimit : 0;
             if (moveText) moveText.text = $"{game.MovementRemaining:0.0} / {game.PlayerMovementLimit:0.#} m";
@@ -87,7 +307,9 @@ namespace MiniFortress
                     : $"{player.name}\nHP {player.hp} / {player.maxHp} · 방어도 {game.Block}\n" +
                       $"에너지 {game.CardEnergy} / {game.MaxCardEnergy}\n다음 공격: {game.PendingAttackBuffs}";
             turnText.text = $"턴 {game.Round}";
-            enemyStatus.text = $"모든 적 처치\n남은 적 {game.LivingEnemies} / {game.FighterCount - 1}명";
+            var actingEnemy = game.CurrentActor > 0 ? game.GetActor(game.CurrentActor) : default;
+            enemyStatus.text = $"남은 적 {game.LivingEnemies} / {game.FighterCount - 1}명" +
+                (game.CurrentActor > 0 ? $"\n{actingEnemy.name} · 방어도 {actingEnemy.armor} · 출혈 {actingEnemy.bleed}" : "");
             messageText.text = resultText.text = game.Message;
             attackText.text = game.HasAttacked ? "공격 완료" : game.IsCharging ? "위력 모으는 중…" : game.CurrentAttackName + " [Space]";
             aimText.text = $"각도 {game.Angle:0}°";
@@ -109,6 +331,24 @@ namespace MiniFortress
                 rect.anchorMin = rect.anchorMax = new Vector2(view.x, view.y); rect.anchoredPosition = Vector2.zero;
                 bar.Show(null, $"{actor.hp}/{actor.maxHp}", actor.hp, actor.maxHp, false);
             }
+        }
+
+        void Update()
+        {
+            if (!game || !game.Ready || !game.CanAim || (settingsPanel && settingsPanel.activeSelf))
+            {
+                aimWheelRemainder = 0;
+                return;
+            }
+
+            var mouse = Mouse.current;
+            if (mouse == null) return;
+            aimWheelRemainder += mouse.scroll.ReadValue().y / AimWheelUnitsPerNotch;
+            int notches = aimWheelRemainder > 0 ? Mathf.FloorToInt(aimWheelRemainder) : Mathf.CeilToInt(aimWheelRemainder);
+            if (notches == 0) return;
+
+            aimWheelRemainder -= notches;
+            game.SetAngle(game.Angle + notches * AimWheelDegreesPerNotch);
         }
 
         void BindCards()
@@ -163,7 +403,7 @@ namespace MiniFortress
             bool piles = deckText && discardText;
             if (piles) { deckText.text = game.DrawPileCount.ToString(); discardText.text = game.DiscardPileCount.ToString(); }
             if (cardStatus)
-                cardStatus.text = $"에너지 {game.CardEnergy}/{game.MaxCardEnergy}" +
+                cardStatus.text = $"화살 {game.Arrows}/{game.ArrowCapacity} · 에너지 {game.CardEnergy}/{game.MaxCardEnergy}" +
                     (piles ? "" : $" · 덱 {game.DrawPileCount} · 버림 {game.DiscardPileCount}") +
                     $" · 방어도 {game.Block} · 다음 공격: {game.PendingAttackBuffs}";
             for (int i = 0; i < cardButtons.Length; i++)
@@ -172,7 +412,7 @@ namespace MiniFortress
                 cardButtons[i].gameObject.SetActive(has);
                 if (!has) continue;
                 if (cardSlots != null && i < cardSlots.Length)
-                { cardSlots[i].Show(game.CardTitle(i), game.CardCost(i), game.CardDescription(i), game.CanPlayCard(i)); continue; }
+                { cardSlots[i].Show(game.CardTitle(i), game.CardCost(i), game.CardDescription(i), game.CanPlayCard(i), game.CardArtwork(i)); continue; }
                 cardLabels[i].text = $"[{i + 1}] {game.CardTitle(i)} ({game.CardCost(i)})\n{game.CardDescription(i)}";
                 cardButtons[i].interactable = game.CanPlayCard(i);
             }
