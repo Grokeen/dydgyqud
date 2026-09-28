@@ -1,6 +1,6 @@
 # 디자인 에셋 교체 가이드
 
-맵·캐릭터·카드의 이미지와 3D 모델, 카드 구성은 코드를 고치지 않고 **파일을 넣고 Inspector 칸을 채우는 것만으로** 바꿀 수 있습니다.
+맵·캐릭터·카드의 이미지와 3D 모델, 직업 수치와 카드 구성은 코드를 고치지 않고 **파일을 넣고 Inspector 칸을 채우는 것만으로** 바꿀 수 있습니다.
 칸을 비워 두면 지금의 기본 모양(색으로 구분한 캡슐 캐릭터, 벽돌·판자 발판, 기본 화살·창)이 그대로 쓰입니다.
 전투 판정(충돌, 탄도, 체력)은 외형과 분리되어 있어서 외형을 바꿔도 게임 규칙은 달라지지 않습니다.
 
@@ -75,39 +75,45 @@
 - 피격 시 붉게 깜빡이는 효과는 모델 재질 색(`_BaseColor` / `_Color`)에 자동으로 곱해집니다.
 - 판정 크기(`Height`, `Half Width`, `Shoulder Height`, `Muzzle Distance`)는 모델과 별개입니다. 모델을 크게 바꾸면 이 값들도 함께 맞추세요.
 
-## 카드
+## 직업
 
-카드는 **직업별로 완전히 분리**되어 있습니다. 이름이 같은 카드(예: 궁수 `방어`, 창병 `방어`)도 서로 다른 카드이며 수치와 그림을 따로 가집니다.
+직업마다 고유 능력, 수치, 카드가 **완전히 분리**되어 있습니다. 공용 전투 코드는 직업 이름을 모르고, 정해진 시점에 플레이어의 직업 모듈을 부르기만 합니다.
 
 ```
-Assets/FortressContent/Cards/Archer/Archer Cards.asset       궁수 카드 세트 (시작 덱 + 보상 카드)
-Assets/FortressContent/Cards/Spearman/Spearman Cards.asset   창병 카드 세트
+Assets/FortressContent/Classes/Archer/Archer Class.asset     궁수 수치 (시작·최대 화살, 출혈 폭발 기준·피해, 연쇄 거리, 공격 이름)
+Assets/FortressContent/Classes/Archer/Archer Cards.asset     궁수 카드 세트 (시작 덱 + 보상 카드)
+Assets/FortressContent/Classes/Spearman/Spearman Class.asset 창병 수치
+Assets/FortressContent/Classes/Spearman/Spearman Cards.asset 창병 카드 세트
 Assets/Resources/FortressCardArt/Archer/                     궁수 카드 그림
 Assets/Resources/FortressCardArt/Spearman/                   창병 카드 그림
-Assets/Fortress/Cards/Common/                                모든 직업이 쓰는 효과 처리 코드 (방어, 드로우, 피해, 치명타, 코스트)
-Assets/Fortress/Cards/Archer/                                궁수 전용 효과 처리 코드 (출혈, 화살 회수 등) + 기본 카드 원본
-Assets/Fortress/Cards/Spearman/                              창병 전용 효과 처리 코드 + 기본 카드 원본
+Assets/Fortress/Classes/FortressClassModule.cs               모든 직업이 따르는 공통 약속 (아래 시점 목록)
+Assets/Fortress/Classes/Archer/                              궁수 모듈: 화살·회수·출혈·약화 로직, 궁수 카드 효과, 기본 카드 원본
+Assets/Fortress/Classes/Spearman/                            창병 모듈 (아직 고유 능력 없음)
+Assets/Fortress/Cards/                                       카드 공통 틀과 공용 효과 (방어, 드로우, 피해, 치명타, 코스트)
 ```
 
-- **카드 수정·추가**: 직업의 카드 세트 에셋을 열고 `Starter Deck`(시작 덱, `Copies`만큼 들어감) 또는 `Reward Pool`(스테이지 보상 후보)에서 편집합니다.
-- **캐릭터와 연결**: 캐릭터 데이터의 `Card Set` 칸이 쓸 카드 세트입니다. 비우면 코드의 기본 카드를 씁니다.
-- **그림 연결**(둘 중 하나)
+- **캐릭터와 연결**: 캐릭터 데이터의 `Class`(직업 모듈)와 `Card Set`(카드 세트) 칸입니다. 비우면 무기 종류로 기본 직업을 고릅니다(활 → 궁수, 창 → 창병).
+- **수치 조정**: 직업 에셋(예: `Archer Class`)을 열어 Inspector에서 고칩니다. 공용 규칙(`BattleRules`)에는 직업 수치가 없습니다.
+- **직업 모듈이 불리는 시점**: 전투 시작, 턴 시작, 공격 확정, 발사 수 결정, 화살마다의 효과, 특정 적 추가 피해, 적 공격 약화, 적중, 빗맞음, 카드 효과, HUD 문구(공격 버튼 위, 상태 줄, 적 상태), 전장 정리. 새 직업은 필요한 시점만 구현하면 됩니다.
+- **카드 수정·추가**: 직업의 카드 세트 에셋에서 `Starter Deck`(시작 덱, `Copies`만큼 들어감) 또는 `Reward Pool`(스테이지 보상 후보)을 편집합니다. 이름이 같은 카드(예: 궁수 `방어`, 창병 `방어`)도 직업마다 별개 카드입니다.
+- **카드 그림 연결**(둘 중 하나)
   1. 카드의 `Art` 칸에 이미지를 직접 넣습니다(우선).
-  2. 카드 세트의 `Art Folder`(예: `Archer`) 폴더에 **카드 이름과 같은 이름**의 PNG를 넣습니다(예: `FortressCardArt/Archer/방어.png`). 없으면 **효과 이름** 파일을 찾습니다(예: `Archer/ShotDamage.png`는 궁수의 해당 효과 카드 전체에 적용).
-- 손패와 스테이지 보상 카드 모두에 적용됩니다. 맞는 그림이 없으면 그림 자리가 비어 있습니다.
-- 기존 이미지 `ArcherVolley`, `ArcherPrecision`, `ArcherFieldcraft`는 `FortressCardArt/Archer`로 옮겼지만, 카드 이름과 맞지 않아 지금은 쓰이지 않습니다.
-- 카드 세트를 망가뜨렸을 때는 메뉴 `Mini Fortress → Restore Built-in Card Sets`로 되돌립니다.
+  2. 카드 세트의 `Art Folder`(예: `Archer`) 폴더에 **카드 이름과 같은 이름**의 PNG를 넣습니다(예: `FortressCardArt/Archer/방어.png`). 없으면 **효과 이름** 파일을 찾습니다(예: `Archer/ShotDamage.png`).
+- 기존 이미지 `ArcherVolley`, `ArcherPrecision`, `ArcherFieldcraft`는 `FortressCardArt/Archer`에 있지만 카드 이름과 맞지 않아 지금은 쓰이지 않습니다.
+- 직업 수치나 카드 세트를 망가뜨렸을 때는 메뉴 `Mini Fortress → Restore Built-in Classes and Card Sets`로 되돌립니다.
 
 **새 직업 추가**
-1. `Assets/FortressContent/Cards/<직업>`에 `Create → Mini Fortress → Card Set`으로 카드 세트를 만들고 `Art Folder`에 직업 이름을 적습니다.
-2. `Assets/Resources/FortressCardArt/<직업>` 폴더를 만들어 그림을 넣습니다.
-3. 새 캐릭터 데이터의 `Card Set`에 연결하고, 씬 `Battlefield`의 `Player Classes`에 캐릭터를 추가합니다.
-4. 기존 효과만 쓰면 코드는 필요 없습니다. 전용 효과가 필요하면 `FortressCard.cs`의 효과 목록 **맨 뒤**에 추가하고(중간에 넣으면 저장된 카드의 효과가 바뀝니다), `Assets/Fortress/Cards/<직업>/FortressGame.<직업>Cards.cs`에 처리 코드를 만들어 `FortressGame.Cards.cs`의 분기에 연결합니다.
+1. 코드: `Assets/Fortress/Classes/<직업>/` 폴더를 만들고 창병 폴더의 두 파일을 참고해 `Fortress<직업>Class`(수치, ScriptableObject)와 `Fortress<직업>Runtime`(전투 중 상태와 능력)을 만듭니다. 필요한 시점만 override합니다.
+2. 전용 카드 효과가 필요하면 `FortressCard.cs`의 효과 목록 **맨 뒤**에 추가하고(중간에 넣으면 저장된 카드의 효과가 바뀝니다), 새 직업 Runtime의 `PlayCard`에서 처리합니다.
+3. 데이터: `Assets/FortressContent/Classes/<직업>/`에 `Create → Mini Fortress → Classes → <직업>`으로 직업 에셋을, `Create → Mini Fortress → Card Set`으로 카드 세트를 만들고 `Art Folder`에 직업 이름을 적습니다.
+4. 그림: `Assets/Resources/FortressCardArt/<직업>` 폴더에 카드 그림을 넣습니다.
+5. 캐릭터 데이터를 만들어 `Class`, `Card Set`을 연결하고, 씬 `Battlefield`의 `Player Classes`에 추가합니다.
 
 ## 코드 위치(참고)
 
 - 맵 데이터: `Assets/Fortress/FortressMapDefinition.cs`, 적용: `FortressGame.MapSelection.cs`, 기본 맵 원본: `FortressBuiltInMaps.cs`
 - 발판 외형 생성: `FortressGame.World3D.cs`
 - 캐릭터 외형: `FortressFighterModel.cs`, 기본 발판 질감·활·화살: `FortressModel3D.cs`
-- 카드: `Assets/Fortress/Cards/` (세트 `FortressCardSet.cs`, 그림 찾기 `FortressCardArt.cs`, 직업별 하위 폴더)
-- 기본 맵·카드 세트 에셋 생성·복원: `Assets/Editor/FortressMapAssets.cs`, `Assets/Editor/FortressCardAssets.cs`
+- 직업 모듈: `Assets/Fortress/Classes/` (공통 약속 `FortressClassModule.cs`, 직업별 하위 폴더), 게임과의 연결 `FortressGame.PlayerClass.cs`
+- 카드: `Assets/Fortress/Cards/` (세트 `FortressCardSet.cs`, 그림 찾기 `FortressCardArt.cs`, 공용 효과 `Common/`)
+- 기본 맵·직업·카드 세트 에셋 생성·복원: `Assets/Editor/FortressMapAssets.cs`, `Assets/Editor/FortressClassAssets.cs`

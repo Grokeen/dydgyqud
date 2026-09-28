@@ -37,4 +37,5 @@ MonoBehaviour:
   halfWidth: 0.7
   shoulderHeight: 2.5
   muzzleDistance: 1.6
+  classBehaviour: {fileID: 11400000, guid: d68cfabb9f28daf40a10ad6a66e4d82b, type: 2}
   cardSet: {fileID: 11400000, guid: 6aac73744a3b6714bbad9881db5ed392, type: 2}

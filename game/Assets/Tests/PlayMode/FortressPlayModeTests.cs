@@ -145,45 +145,49 @@ public sealed class FortressPlayModeTests
 
     void SetField(string name, object value) => typeof(FortressGame).GetField(name, Hidden).SetValue(game, value);
 
+    // The archer's arrows and bleed live in its class module (Assets/Fortress/Classes/Archer).
+    FortressArcherRuntime Archer => (FortressArcherRuntime)game.PlayerClassRuntime;
+
     [UnityTest]
     public IEnumerator ArcherLoosesWholeQuiverAndRecoversFallenArrows()
     {
         game.BeginBattle(); yield return null;
-        Assert.That(game.UsesArrows, Is.True);
-        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseArrows));
+        var archer = Archer;
+        Assert.That(archer.ArrowCount, Is.EqualTo(archer.Settings.baseArrows));
         var addFour = new FortressCardEntry("화살", FortressCardEffect.AddArrows, 4, 1, FortressCardRarity.Common, null);
-        Call("PlayArrowCard", addFour);
-        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseArrows + 4));
+        archer.PlayArrowCard(addFour);
+        Assert.That(archer.ArrowCount, Is.EqualTo(archer.Settings.baseArrows + 4));
         // Adding never passes the cap.
-        Call("PlayArrowCard", addFour); Call("PlayArrowCard", addFour);
-        Assert.That(game.ArrowCount, Is.EqualTo(game.MaxArrowCount));
+        archer.PlayArrowCard(addFour); archer.PlayArrowCard(addFour);
+        Assert.That(archer.ArrowCount, Is.EqualTo(archer.MaxArrowCount));
         // One attack looses every arrow held.
         Call("ConsumeAttackBuffs");
-        Assert.That(game.ArrowCount, Is.Zero);
-        Assert.That(Field("volleyRemaining"), Is.EqualTo(game.MaxArrowCount - 1));
+        Assert.That(archer.ArrowCount, Is.Zero);
+        Assert.That(Field("volleyRemaining"), Is.EqualTo(archer.MaxArrowCount - 1));
         // A miss stays on the map until recovered, and recovered arrows join next turn's quiver.
-        Call("PlayerArrowMissed", Feet(0) + Vector2.right * 3, Vector2.right, true);
-        Assert.That(game.FallenArrowCount, Is.EqualTo(1));
-        Call("PlayArrowCard", new FortressCardEntry("화살 줍기", FortressCardEffect.Recover, 1, 0, FortressCardRarity.Common, null));
-        Assert.That(game.FallenArrowCount, Is.Zero); Assert.That(game.RecoveredArrowsNextTurn, Is.EqualTo(1));
+        archer.OnMiss(Feet(0) + Vector2.right * 3, Vector2.right, true);
+        Assert.That(archer.FallenArrowCount, Is.EqualTo(1));
+        archer.PlayArrowCard(new FortressCardEntry("화살 줍기", FortressCardEffect.Recover, 1, 0, FortressCardRarity.Common, null));
+        Assert.That(archer.FallenArrowCount, Is.Zero); Assert.That(archer.RecoveredNextTurn, Is.EqualTo(1));
         // Next turn is back to the base count, plus what was recovered.
-        Call("RefillArrows");
-        Assert.That(game.ArrowCount, Is.EqualTo(game.Rules.baseArrows + 1));
+        archer.RefillArrows();
+        Assert.That(archer.ArrowCount, Is.EqualTo(archer.Settings.baseArrows + 1));
     }
 
     [UnityTest]
     public IEnumerator BleedStacksAndBurstsAtThreshold()
     {
         game.BeginBattle(); yield return null;
-        SetActor(1, "maxHp", 200); SetActor(1, "hp", 200); SetActor(1, "bleed", game.Rules.bleedThreshold - 1);
-        Call("PlayBleedCard", new FortressCardEntry("출혈", FortressCardEffect.Bleed, 2, 1, FortressCardRarity.Common, null));
-        Call("LockAttackBuffs");
-        SetField("mainShotMods", Call("NextArrowMods")); SetField("current", 0);
+        var archer = Archer;
+        SetActor(1, "maxHp", 200); SetActor(1, "hp", 200); archer.AddBleed(1, archer.Settings.bleedThreshold - 1);
+        archer.PlayBleedCard(new FortressCardEntry("출혈", FortressCardEffect.Bleed, 2, 1, FortressCardRarity.Common, null));
+        archer.LockAttackBuffs();
+        SetField("mainShotMods", archer.NextShotMods()); SetField("current", 0);
         SetField("shotPosition", Feet(1) + Vector2.up * 2);
         Call("Impact", 1, false);
         // Arrow damage, then bleed 9 + 2 = 11 bursts once for 20 and keeps the remaining 1.
-        Assert.That(game.GetActor(1).hp, Is.EqualTo(200 - game.Classes[0].damage - game.Rules.bleedBurstDamage));
-        Assert.That(game.GetActor(1).bleed, Is.EqualTo(1));
+        Assert.That(game.GetActor(1).hp, Is.EqualTo(200 - game.Classes[0].damage - archer.Settings.bleedBurstDamage));
+        Assert.That(archer.Bleed(1), Is.EqualTo(1));
         Assert.That(game.Message, Does.Contain("출혈 폭발"));
     }
 
