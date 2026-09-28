@@ -22,6 +22,8 @@ namespace MiniFortress
         public int SelectedMap => selectedMap;
         public string MapName(int index) => maps[index].Title;
         public string MapDescription(int index) => maps[index].description;
+        public string MapMenuTagline(int index) => maps[index].menuTagline;
+        public string MapMenuDescription(int index) => maps[index].menuDescription;
         public Sprite MapPreviewSprite(int index) => index >= 0 && index < maps.Length ? maps[index].PreviewImage : null;
         FortressMapDefinition CurrentMap => maps[selectedMap];
 

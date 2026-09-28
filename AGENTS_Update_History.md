@@ -107,3 +107,9 @@ FortressMapCarousel Play Mode 검증을 다시 시도했습니다. Unity 스크�
 
 ## 2026-09-28 15:10:00 (KST) · Claude
 카드를 직업별로 분리했습니다. 코드는 Assets/Fortress/Cards/{Common, Archer, Spearman}으로 옮겼습니다(git mv, .meta 유지): 공용 덱·효과는 Common/FortressGame.Cards.cs, 궁수 출혈·화살은 Archer/FortressGame.Bleed.cs·Arrows.cs, 직업별 효과 분기는 FortressGame.ArcherCards.cs / SpearmanCards.cs. 연사(Volley)는 창병 추가 발사도 쓰는 공용 사격이라 Fortress 폴더에 두었습니다. FortressCard.cs의 DefaultDeck/RewardPool을 직업별 시드(FortressArcherCardSeeds, FortressSpearmanCardSeeds)로 옮기고, 직업 카드 세트 에셋 FortressCardSet(시작 덱·보상 목록·그림 폴더)과 캐릭터 데이터의 cardSet 칸을 추가했습니다(기존 deck 칸 제거, 에셋에 값 없었음). 카드 그림은 Resources/FortressCardArt/<직업>에서 찾으므로 같은 이름 카드도 직업마다 다른 그림을 가집니다. 에디터의 FortressCardAssets가 카드 세트 에셋·그림 폴더를 만들고 궁수·창병 데이터에 연결합니다. 테스트가 호출하는 PlayArrowCard/PlayBleedCard 이름은 유지했습니다. 게임·에디터 어셈블리 컴파일 오류 0건, Play Mode 검증은 하지 못했습니다. vscode 작업 기록 규칙을 적용했습니다.
+
+## 2026-09-28 16:40:00 (KST) · Claude
+메인 메뉴 맵 캐러셀 배치를 고쳤습니다. 카드가 왼쪽 위 기준으로 확대·축소되어 좌우 틈이 43px/3px로 어긋나고 줄 전체가 왼쪽으로 치우치던 문제를, FortressMapCarousel에서 카드 pivot을 중앙으로 바꾸고 중앙 카드 기준 좌우 대칭 위치(간격 20px)로 계산하도록 수정했습니다. 캐러셀은 항상 최대 3장을 보여 주므로 FortressHud의 맵 카드 폭을 맵 개수와 무관한 260px로 고정했습니다. 컴파일 오류 0건, Unity 화면 확인은 하지 못했습니다. vscode 작업 기록 규칙을 적용했습니다.
+
+## 2026-09-28 17:05:00 (KST) · Claude
+메인 메뉴 캐러셀에서 처음부터 3장 밖에 있던 맵 카드가 숨겨지지 않아 4장이 겹쳐 보이던 문제를 FortressMapCarousel에서 고쳤습니다. 또 맵 선택에 따라 메뉴 상단 부제·설명이 바뀌도록 FortressMapDefinition에 menuTagline/menuDescription을 추가하고, FortressHud가 선택 맵의 문구(비어 있으면 기존 공통 문구)를 표시하게 했습니다. 기본 맵 4개의 문구는 FortressBuiltInMaps와 Resources/FortressMaps 에셋에 넣었습니다. 게임 제목과 기능 소개 카드는 고정입니다. 컴파일 오류 0건, Unity 화면 확인은 하지 못했습니다. vscode 작업 기록 규칙을 적용했습니다.

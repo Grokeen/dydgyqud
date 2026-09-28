@@ -11,7 +11,7 @@ namespace MiniFortress
         public struct Seed
         {
             public int order;
-            public string name, description, backgroundResource;
+            public string name, description, backgroundResource, menuTagline, menuDescription;
             public Color tint;
             public Vector2 player;
             public FortressMapPlatform[] platforms;
@@ -46,7 +46,8 @@ namespace MiniFortress
                     new FortressMapEnemy("대교 경비병", new Vector2(46, 19)),
                     new FortressMapEnemy("성채 대장", new Vector2(79, 19)),
                     new FortressMapEnemy("동문 파수꾼", new Vector2(94, 24)),
-                }),
+                }).Menu("달빛 아래 대교, 양쪽 성루에서 화살이 쏟아진다",
+                "넓은 대교를 사이에 두고 성루의 파수꾼들을 쓰러뜨려라. 대교 아래 발판으로 우회할 수 있다."),
             Map(1, "달빛 협곡", "절벽 사이를 오르는 계단길", "FortressMapPreviews/MoonlitRavine", new Color(.82f, .9f, 1f), new Vector2(8, 25),
                 new[]
                 {
@@ -66,7 +67,8 @@ namespace MiniFortress
                     new FortressMapEnemy("협곡 다리 파수꾼", new Vector2(46, 19)),
                     new FortressMapEnemy("상단 경비병", new Vector2(64, 22)),
                     new FortressMapEnemy("봉우리 대장", new Vector2(94, 30)),
-                }),
+                }).Menu("절벽을 오를수록 적은 더 높은 곳에서 기다린다",
+                "계단처럼 이어진 절벽길을 올라 봉우리의 대장을 노려라. 높이 차를 계산한 곡사가 승부를 가른다."),
             Map(2, "갈라진 성벽", "무너진 틈을 건너는 부유 발판", "FortressMapPreviews/BrokenRamparts", new Color(1f, .88f, .76f), new Vector2(8, 25),
                 new[]
                 {
@@ -86,7 +88,8 @@ namespace MiniFortress
                     new FortressMapEnemy("무너진 탑 수비병", new Vector2(43, 21)),
                     new FortressMapEnemy("동쪽 균열 사수", new Vector2(74, 22)),
                     new FortressMapEnemy("폐허의 대장", new Vector2(94, 27)),
-                }),
+                }).Menu("무너진 틈 사이, 한 걸음이 곧 추락이다",
+                "부유 발판과 큰 틈을 건너며 폐허의 수비병을 제압하라. 떨어지면 체력을 잃는다."),
             Map(3, "기존 성채 전장", "처음 전장의 성채·협곡·대교 배치", "FortressArt/CitadelArena", new Color(.9f, .94f, 1f), new Vector2(9, 24.7f),
                 new[]
                 {
@@ -106,14 +109,19 @@ namespace MiniFortress
                     new FortressMapEnemy("성채 대장", new Vector2(72, 28.5f)),
                     new FortressMapEnemy("절벽 사수", new Vector2(97, 17)),
                     new FortressMapEnemy("하단 경비병", new Vector2(85, 6.9f)),
-                }),
+                }).Menu("성채와 협곡, 대교가 얽힌 처음의 전장",
+                "다리 위 파수꾼부터 절벽 위 대장까지, 높낮이가 다른 적을 차례로 격파하라."),
         };
+
+        static Seed Menu(this Seed seed, string tagline, string description)
+        { seed.menuTagline = tagline; seed.menuDescription = description; return seed; }
 
         // Builds an unsaved map asset; `loadBackground` resolves a Resources path to a sprite.
         public static FortressMapDefinition Create(Seed seed, Func<string, Sprite> loadBackground)
         {
             var map = ScriptableObject.CreateInstance<FortressMapDefinition>();
             map.name = seed.name; map.order = seed.order; map.displayName = seed.name; map.description = seed.description;
+            map.menuTagline = seed.menuTagline; map.menuDescription = seed.menuDescription;
             map.background = loadBackground(seed.backgroundResource); map.tint = seed.tint; map.playerSpawn = seed.player;
             map.platforms.AddRange(seed.platforms); map.enemies.AddRange(seed.enemies);
             return map;

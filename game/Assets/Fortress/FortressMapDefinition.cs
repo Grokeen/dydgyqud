@@ -12,6 +12,10 @@ namespace MiniFortress
         public int order;
         public string displayName;
         [TextArea] public string description;
+        [Tooltip("메인 메뉴 상단 부제. 이 맵을 고르면 바뀝니다. 비워 두면 공통 문구")]
+        public string menuTagline;
+        [Tooltip("메인 메뉴 상단 설명. 이 맵을 고르면 바뀝니다. 비워 두면 공통 문구")]
+        [TextArea] public string menuDescription;
 
         [Header("이미지")]
         [Tooltip("전투 배경. 카메라를 따라가며 화면을 덮습니다.")]

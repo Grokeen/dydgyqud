@@ -9,8 +9,10 @@ namespace MiniFortress
     [DisallowMultipleComponent]
     public sealed class FortressMapCarousel : MonoBehaviour
     {
-        const float MapGap = 12f;
-        const float CardY = -508f;
+        const float MapGap = 20f;
+        // Top of the card row in the menu frame (below "전장을 선택하세요", above the start button).
+        const float CardTop = 508f;
+        const float CentreScale = 1.04f, SideScale = .86f;
         const float AnimationTime = .2f;
 
         sealed class CardState
@@ -91,7 +93,10 @@ namespace MiniFortress
                 if (!card) continue;
                 var group = card.GetComponent<CanvasGroup>();
                 if (!group) group = card.gameObject.AddComponent<CanvasGroup>();
-                cards[i] = new CardState { rect = card.GetComponent<RectTransform>(), canvasGroup = group };
+                var rect = card.GetComponent<RectTransform>();
+                // Scale about the card's centre so the side cards shrink evenly and the row stays symmetric.
+                rect.pivot = new Vector2(.5f, .5f);
+                cards[i] = new CardState { rect = rect, canvasGroup = group };
             }
         }
 
@@ -105,22 +110,24 @@ namespace MiniFortress
             int slot = distance == 0 ? 0 : distance == 1 ? 1 : distance == count - 1 ? -1 : int.MinValue;
             if (slot == int.MinValue)
             {
-                if (state.visible) state.rect.gameObject.SetActive(false);
+                // Also hides cards that were never shown: the menu builds every map card, but only three belong on screen.
+                if (state.rect.gameObject.activeSelf) state.rect.gameObject.SetActive(false);
                 state.visible = false;
                 return;
             }
 
+            // Card centres: the selected card in the middle of the frame, neighbours one scaled half-width plus a gap away.
             var frameRect = cachedFrame as RectTransform;
-            float centerX = frameRect
-                ? (frameRect.rect.width - state.rect.rect.width) * .5f
-                : state.rect.anchoredPosition.x;
-            float targetX = centerX + slot * (state.rect.rect.width + MapGap);
+            float width = state.rect.rect.width, height = state.rect.rect.height;
+            float centreX = frameRect ? frameRect.rect.width * .5f : 500f;
+            float targetX = centreX + slot * (width * (CentreScale + SideScale) * .5f + MapGap);
+            float centreY = -(CardTop + height * .5f);
             float targetAlpha = slot == 0 ? 1f : .48f;
-            float targetScale = slot == 0 ? 1.04f : .86f;
+            float targetScale = slot == 0 ? CentreScale : SideScale;
             if (!state.visible)
             {
                 state.rect.gameObject.SetActive(true);
-                state.rect.anchoredPosition = new Vector2(targetX + (slot == 0 ? 0 : slot * 42f), CardY);
+                state.rect.anchoredPosition = new Vector2(targetX + (slot == 0 ? 0 : slot * 42f), centreY);
                 state.rect.localScale = Vector3.one * (slot == 0 ? .94f : .8f);
                 state.canvasGroup.alpha = 0;
                 state.positionVelocity = Vector2.zero;
@@ -129,7 +136,7 @@ namespace MiniFortress
                 state.visible = true;
             }
 
-            Vector2 targetPosition = new Vector2(targetX, CardY);
+            Vector2 targetPosition = new Vector2(targetX, centreY);
             Vector3 targetScaleVector = Vector3.one * targetScale;
             state.rect.anchoredPosition = Vector2.SmoothDamp(state.rect.anchoredPosition, targetPosition,
                 ref state.positionVelocity, AnimationTime);

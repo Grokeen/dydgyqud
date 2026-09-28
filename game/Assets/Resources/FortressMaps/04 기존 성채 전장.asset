@@ -15,6 +15,8 @@ MonoBehaviour:
   order: 3
   displayName: "\uAE30\uC874 \uC131\uCC44 \uC804\uC7A5"
   description: "\uCC98\uC74C \uC804\uC7A5\uC758 \uC131\uCC44\xB7\uD611\uACE1\xB7\uB300\uAD50 \uBC30\uCE58"
+  menuTagline: "\uc131\ucc44\uc640 \ud611\uace1, \ub300\uad50\uac00 \uc5bd\ud78c \ucc98\uc74c\uc758 \uc804\uc7a5"
+  menuDescription: "\ub2e4\ub9ac \uc704 \ud30c\uc218\uafbc\ubd80\ud130 \uc808\ubcbd \uc704 \ub300\uc7a5\uae4c\uc9c0, \ub192\ub0ae\uc774\uac00 \ub2e4\ub978 \uc801\uc744 \ucc28\ub840\ub85c \uaca9\ud30c\ud558\ub77c."
   background: {fileID: 21300000, guid: 0b9ad955495557343acbf692553e3136, type: 3}
   preview: {fileID: 0}
   tint: {r: 0.9, g: 0.94, b: 1, a: 1}

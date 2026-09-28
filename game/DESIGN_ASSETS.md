@@ -24,6 +24,7 @@
 | 칸 | 내용 |
 |---|---|
 | Display Name / Description | 메인 메뉴 카드의 이름과 설명 |
+| Menu Tagline / Menu Description | 이 맵을 고르면 메인 메뉴 위쪽 부제와 설명이 이 문구로 바뀝니다. 비우면 공통 문구 |
 | Background | 전투 배경 이미지(Sprite). 카메라를 따라가며 화면을 덮습니다 |
 | Preview | 메인 메뉴 카드 이미지. 비우면 배경을 씁니다 |
 | Tint | 기본 발판 색에 곱하는 색조 |

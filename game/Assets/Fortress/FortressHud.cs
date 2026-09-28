@@ -9,6 +9,9 @@ namespace MiniFortress
     public sealed class FortressHud : MonoBehaviour
     {
         const string GameTitle = "월하요새: 최후의 궤적";
+        // Main menu tagline/description when the selected map has none of its own (FortressMapDefinition.menuTagline ...).
+        const string DefaultMenuTagline = "한 발의 궤적이 성벽의 운명을 가른다";
+        const string DefaultMenuDescription = "전략 카드로 전황을 바꾸고, 각도를 겨눠 월하요새를 지켜라.";
         const float AimWheelUnitsPerNotch = 120f;
         const float AimWheelDegreesPerNotch = 3f;
         const float CameraZoomUnitsPerNotch = 120f;
@@ -59,6 +62,7 @@ namespace MiniFortress
         float displayedPlayerHealth;
         bool playerHealthInitialized;
         GameObject mainMenuPanel;
+        Text menuTagline, menuDescription;
         readonly List<Image> mapChoiceImages = new List<Image>();
         readonly List<Outline> mapChoiceOutlines = new List<Outline>();
         Text arrowCountLabel;
@@ -159,10 +163,10 @@ namespace MiniFortress
                 new Color(.79f, .64f, .38f), FontStyle.Bold);
             MenuLabel(frame, "Game Title", GameTitle, 80, 104, 840, 82, 50,
                 new Color(.94f, .92f, .84f), FontStyle.Bold);
-            MenuLabel(frame, "Tagline", "한 발의 궤적이 성벽의 운명을 가른다", 120, 190, 760, 42, 24,
+            menuTagline = MenuLabel(frame, "Tagline", DefaultMenuTagline, 120, 190, 760, 42, 24,
                 new Color(.78f, .83f, .82f), FontStyle.Normal);
             MenuShape(frame, "Title Rule", 180, 255, 640, 2, new Color(.63f, .43f, .18f, .8f));
-            MenuLabel(frame, "Description", "전략 카드로 전황을 바꾸고, 각도를 겨눠 월하요새를 지켜라.",
+            menuDescription = MenuLabel(frame, "Description", DefaultMenuDescription,
                 110, 282, 780, 54, 19, new Color(.73f, .78f, .79f), FontStyle.Normal);
 
             MenuFeature(frame, "01", "전략 카드", "전술을 고르고 에너지를 관리", 116);
@@ -170,11 +174,12 @@ namespace MiniFortress
             MenuFeature(frame, "03", "요새 수호", "움직이고 버티며 적을 격파", 656);
             MenuLabel(frame, "Map Heading", "전장을 선택하세요", 120, 474, 760, 30, 18,
                 new Color(.82f, .72f, .5f), FontStyle.Bold);
-            float mapGap = 12;
-            float mapWidth = (920 - mapGap * (game.MapCount - 1)) / game.MapCount;
-            float mapStart = (1000 - (mapWidth * game.MapCount + mapGap * (game.MapCount - 1))) * .5f;
+            // FortressMapCarousel shows at most three cards and places them; size cards for three, whatever the map count.
+            const float mapGap = 12, mapWidth = 260;
+            int mapColumns = Mathf.Min(game.MapCount, 3);
+            float mapStart = (1000 - (mapWidth * mapColumns + mapGap * (mapColumns - 1))) * .5f;
             for (int i = 0; i < game.MapCount; i++)
-                CreateMapChoice(frame, i, mapStart + i * (mapWidth + mapGap), 508, mapWidth, 192);
+                CreateMapChoice(frame, i, mapStart + Mathf.Min(i, 2) * (mapWidth + mapGap), 508, mapWidth, 192);
             CreateMenuButton(frame, "출전 준비", 340, 710, 320, 58);
             MenuLabel(frame, "Footer", "맵과 캐릭터를 선택하고 전투를 시작하세요", 180, 778, 640, 26, 15,
                 new Color(.56f, .64f, .66f), FontStyle.Normal);
@@ -224,6 +229,12 @@ namespace MiniFortress
                     ? new Color(.28f, .23f, .14f) : new Color(.07f, .1f, .115f, .96f);
                 mapChoiceOutlines[i].enabled = game.SelectedMap == i;
             }
+            // The tagline and description above the map cards follow the selected map.
+            int selected = game.SelectedMap;
+            if (selected < 0 || selected >= game.MapCount) return;
+            string tagline = game.MapMenuTagline(selected), description = game.MapMenuDescription(selected);
+            if (menuTagline) menuTagline.text = string.IsNullOrWhiteSpace(tagline) ? DefaultMenuTagline : tagline;
+            if (menuDescription) menuDescription.text = string.IsNullOrWhiteSpace(description) ? DefaultMenuDescription : description;
         }
 
         void CreateMenuButton(Transform parent, string caption, float x, float y, float width, float height)
