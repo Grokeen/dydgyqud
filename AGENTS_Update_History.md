@@ -98,3 +98,6 @@ push 요청 전에 원격 main의 후속 커밋(화살 발사 규칙 변경)을 
 
 ## 2026-09-28 00:17:16 (KST) · 코덱스orig
 FortressMapCarousel Play Mode 검증을 다시 시도했습니다. Unity 스크립트 어셈블리 초기화 로그까지 진행했으나 Licensing Client IPC 연결이 74초 후 실패했고, com.unity.editor.headless를 찾지 못해 테스트 결과 파일은 생성되지 않았습니다. 대기 중이던 이번 검증용 Unity 프로세스만 종료했습니다. vscode 작업 기록 규칙을 적용했습니다.
+
+## 2026-09-28 10:50:00 (KST) · Claude
+캐릭터·발판을 3D로 전환했습니다(게임 규칙은 2D 유지). 이동·충돌·탄도는 기존 z = 0 평면 그대로이고, 표현만 바꿨습니다. FortressObliqueCamera(사선 직교 투영, z = 0 평면은 기존과 동일하게 투영), FortressFighterModel(궁수·창병·경비병·대장 3D 인물, 조준을 따라가는 팔, 기존 Animator 클립 재사용), FortressModel3D(도형·재질·벽돌/판자 질감·활·화살·창), FortressGame.World3D(달빛·횃불 조명, 3D 발판, 3D 발사체)를 추가했습니다. 배경은 z = 60으로 옮기고 FortressCameraBackdrop이 스프라이트 중심 기준으로 화면을 덮도록 고쳤습니다(기존에는 하단 피벗 때문에 위쪽 절반만 덮음). 컴파일 오류 0건이고, Unity 배치 PlayMode에서 네 맵 화면을 캡처해 확인했습니다. 기존 PlayMode 테스트 4건(HUD 체력 문구·버튼 관련)은 변경 전 코드에서도 똑같이 실패합니다. vscode 작업 기록 규칙을 적용했습니다.

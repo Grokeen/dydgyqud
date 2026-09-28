@@ -22,6 +22,7 @@ namespace MiniFortress
         {
             var view = Instantiate(definition.prefab, feet, Quaternion.identity, transform);
             view.name = string.IsNullOrWhiteSpace(displayName) ? definition.displayName : displayName;
+            FortressFighterModel.Attach(view, definition);
             return new Fighter {
                 definition = definition, name = view.name, feet = feet, previousFeet = feet,
                 hp = definition.health, maxHp = definition.health, root = view.transform,

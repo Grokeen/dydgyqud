@@ -3,6 +3,8 @@ using UnityEngine;
 namespace MiniFortress
 {
     public enum FortressWeapon { Bow, Spear }
+    // 3D figure built by FortressFighterModel. Auto picks one from the asset/prefab name and weapon.
+    public enum FortressModelStyle { Auto, Archer, Spearman, Goblin, Captain }
 
     [CreateAssetMenu(menuName = "Mini Fortress/Character", fileName = "Character")]
     public sealed class FortressCharacterDefinition : ScriptableObject
@@ -13,6 +15,8 @@ namespace MiniFortress
         public Sprite portrait;
         public Sprite projectile;
         public FortressWeapon weapon;
+        [Tooltip("3D 캐릭터 모델 모양. Auto는 에셋 이름과 무기로 고릅니다.")]
+        public FortressModelStyle modelStyle;
         [Min(1)] public int health = 120;
         [Min(0)] public int damage = 32;
         [Min(0.01f)] public float blastRadius = 3.5f;

@@ -131,12 +131,11 @@ namespace MiniFortress
             backdrop.Follow(worldCamera);
             mapPlatformVisuals = new Transform[mapTerrain.Length];
             mapPlatformTopVisuals = new Transform[mapTerrain.Length];
+            // 3D platform blocks (FortressGame.World3D); their shape follows each preset's collision rectangles.
             for (int i = 0; i < mapTerrain.Length; i++)
             {
-                mapPlatformVisuals[i] = Shape("Map platform " + mapTerrain[i].name, Vector2.zero, Vector2.one,
-                    new Color(.12f, .17f, .2f, .98f), -19);
-                mapPlatformTopVisuals[i] = Shape("Map platform top " + mapTerrain[i].name, Vector2.zero, Vector2.one,
-                    Color.white, -18);
+                mapPlatformVisuals[i] = PlatformBlock("Map platform " + mapTerrain[i].name);
+                mapPlatformTopVisuals[i] = PlatformBlock("Map platform top " + mapTerrain[i].name);
             }
 
             // CodexCode: show a soft contact shadow and color-coded footprint at every map spawn so feet read as grounded.
@@ -146,10 +145,11 @@ namespace MiniFortress
             for (int i = 0; i < spawnCount; i++)
             {
                 spawnShadows[i] = ArtObject(transform, "Spawn Contact Shadow " + i, arena.effectSprite, Vector2.zero, -17);
-                spawnShadows[i].localScale = new Vector3(2.8f, .66f, 1);
+                LayFlat(spawnShadows[i], new Vector2(2.8f, 1.6f));
                 spawnShadows[i].GetComponent<SpriteRenderer>().color = new Color(.015f, .025f, .035f, .88f);
                 Color footprintColor = i == 0 ? new Color(1f, .63f, .2f, .95f) : new Color(.32f, .8f, .94f, .92f);
-                spawnFootprints[i] = Shape("Spawn Footprint " + i, Vector2.zero, new Vector2(1.65f, .1f), footprintColor, -16);
+                spawnFootprints[i] = Shape("Spawn Footprint " + i, Vector2.zero, Vector2.one, footprintColor * new Color(1, 1, 1, .45f), -16);
+                LayFlat(spawnFootprints[i], new Vector2(1.65f, 1.1f));
             }
         }
 
@@ -185,13 +185,7 @@ namespace MiniFortress
                 collider.offset = Vector2.zero;
                 collider.size = rect.size;
                 mapTerrain[i].allowDropThrough = i < preset.dropThrough.Length && preset.dropThrough[i];
-
-                mapPlatformVisuals[i].position = new Vector3(rect.center.x, rect.yMax - .25f, 0);
-                mapPlatformVisuals[i].localScale = new Vector3(rect.width, .5f, 1);
-                mapPlatformVisuals[i].GetComponent<SpriteRenderer>().color = preset.tint * new Color(.3f, .34f, .4f, .98f);
-                mapPlatformTopVisuals[i].position = new Vector3(rect.center.x, rect.yMax - .055f, -.01f);
-                mapPlatformTopVisuals[i].localScale = new Vector3(rect.width, .11f, 1);
-                mapPlatformTopVisuals[i].GetComponent<SpriteRenderer>().color = preset.tint * new Color(.88f, .82f, .68f, 1f);
+                ShapePlatform(i, rect, mapTerrain[i].allowDropThrough, preset.tint);
             }
 
             arena.playerSpawn.position = new Vector3(preset.player.x, preset.player.y, 0);

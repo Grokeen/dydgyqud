@@ -103,7 +103,7 @@ namespace MiniFortress
             shot.velocity = Direction(0, shot.angle) * player.power * (1 + Random.Range(-spread, spread));
             shot.critical = Random.Range(0, 100) < shotCriticalChance;
             shot.mods = NextArrowMods();
-            shot.view = ArtObject(transform, "Volley arrow", player.definition.projectile, shot.position, 30);
+            shot.view = ProjectileObject("Volley arrow", player.definition.weapon, shot.position);
             shot.view.localScale = Vector3.one * player.root.localScale.x;
             shot.trail = CreateVolleyTrail();
             RecordTrail(shot.trail, shot.position);

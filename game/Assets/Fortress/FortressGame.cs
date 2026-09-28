@@ -71,8 +71,10 @@ namespace MiniFortress
             worldCamera = arena.worldCamera;
             cameraHome = worldCamera.transform.position; cameraSize = worldCamera.orthographicSize;
             worldCamera.aspect = 16f / 9;
-            pixelFrame = new RenderTexture(1920, 1080, 24) { filterMode = FilterMode.Bilinear, antiAliasing = 1 };
+            // 4x MSAA smooths the edges of the 3D fighters and platforms.
+            pixelFrame = new RenderTexture(1920, 1080, 24) { filterMode = FilterMode.Bilinear, antiAliasing = 4 };
             pixelFrame.Create(); worldCamera.targetTexture = pixelFrame;
+            SetUpWorld3D();
             square = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.one * .5f, 1);
             ownedAssets.Add(square);
             // Map presets (FortressGame.MapSelection) must be set up before the layout is read; lost in a merge once.
@@ -298,7 +300,7 @@ namespace MiniFortress
         void LaunchShot()
         {
             int index = current;
-            arrow.GetComponent<SpriteRenderer>().sprite = fighters[index].definition.projectile;
+            ShowProjectileModel(arrow, fighters[index].definition.weapon);
             arrow.localScale = Vector3.one * fighters[index].root.localScale.x;
             float angle = fighters[index].angle;
             current = index; shotPosition = Origin(index, angle);

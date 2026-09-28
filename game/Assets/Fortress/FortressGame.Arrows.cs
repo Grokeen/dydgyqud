@@ -49,10 +49,9 @@ namespace MiniFortress
             if (!UsesArrows) return;
             if (lockedBuffs.recoverMisses) { recoveredNext++; recoveredTotal++; return; }
             if (!landed) return; // flew off the map
-            var view = ArtObject(transform, "Fallen arrow", fighters[0].definition.projectile, at, 8);
+            var view = ProjectileObject("Fallen arrow", fighters[0].definition.weapon, at);
             view.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg);
             view.localScale = Vector3.one * fighters[0].root.localScale.x;
-            view.GetComponent<SpriteRenderer>().color = new Color(.85f, .85f, .85f, .9f);
             fallenArrows.Add(new FallenArrow { view = view, round = round });
         }
 
