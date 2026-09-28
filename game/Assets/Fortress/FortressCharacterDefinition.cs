@@ -3,7 +3,7 @@ using UnityEngine;
 namespace MiniFortress
 {
     public enum FortressWeapon { Bow, Spear }
-    // 3D figure built by FortressFighterModel. Auto picks one from the asset/prefab name and weapon.
+    // Colour of the placeholder capsule built by FortressFighterModel. Auto picks one from the asset/prefab name and weapon.
     public enum FortressModelStyle { Auto, Archer, Spearman, Goblin, Captain }
 
     [CreateAssetMenu(menuName = "Mini Fortress/Character", fileName = "Character")]
@@ -16,9 +16,9 @@ namespace MiniFortress
         public Sprite projectile;
         public FortressWeapon weapon;
         [Header("3D 외형 (비워 두면 기본 도형 모델)")]
-        [Tooltip("캐릭터 3D 모델(FBX/Prefab). +X가 앞, 발이 원점. 비워 두면 Model Style의 기본 도형 모델을 씁니다.")]
+        [Tooltip("캐릭터 3D 모델(FBX/Prefab). +X가 앞, 발이 원점. 비워 두면 Model Style 색의 캡슐 도형을 씁니다.")]
         public GameObject modelPrefab;
-        [Tooltip("기본 도형 모델 모양. Auto는 에셋 이름과 무기로 고릅니다.")]
+        [Tooltip("기본 캡슐 색 (궁수 초록, 창병 주황, 경비병 보라, 대장 빨강). Auto는 에셋 이름과 무기로 고릅니다.")]
         public FortressModelStyle modelStyle;
         [Tooltip("모델 높이를 Height에 맞춰 크기를 자동 조절합니다.")]
         public bool fitModelToHeight = true;

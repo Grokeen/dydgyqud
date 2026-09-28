@@ -1,7 +1,7 @@
 # 디자인 에셋 교체 가이드
 
 맵·캐릭터·카드의 이미지와 3D 모델, 카드 구성은 코드를 고치지 않고 **파일을 넣고 Inspector 칸을 채우는 것만으로** 바꿀 수 있습니다.
-칸을 비워 두면 지금의 기본 모양(기본 도형 캐릭터, 벽돌·판자 발판, 기본 화살·창)이 그대로 쓰입니다.
+칸을 비워 두면 지금의 기본 모양(색으로 구분한 캡슐 캐릭터, 벽돌·판자 발판, 기본 화살·창)이 그대로 쓰입니다.
 전투 판정(충돌, 탄도, 체력)은 외형과 분리되어 있어서 외형을 바꿔도 게임 규칙은 달라지지 않습니다.
 
 권장 형식: 이미지 **PNG**(캐릭터·카드는 투명 배경, 맵 배경은 16:9), 3D 모델 **FBX**(Humanoid 뼈대가 있으면 애니메이션 연결이 쉬움).
@@ -52,7 +52,7 @@
 | 칸 | 내용 |
 |---|---|
 | Portrait | UI 초상화(선택 화면, 턴 순서, 상태창) |
-| Model Prefab | 캐릭터 3D 모델. **원점 = 발, +X = 앞**. 비우면 `Model Style`의 기본 도형 모델을 씁니다 |
+| Model Prefab | 캐릭터 3D 모델. **원점 = 발, +X = 앞**. 비우면 `Model Style` 색의 캡슐을 씁니다 |
 | Fit Model To Height | 모델 높이를 `Height`에 맞춰 자동으로 크기를 조절하고 발을 땅에 붙입니다 |
 | Model Offset / Rotation / Scale | 위치·회전·크기 미세 조정. 기본 회전 Y 28°는 카메라 쪽으로 살짝 돌려 입체감을 주는 값입니다 |
 | Use Built In Body Motion | 켜면 기본 애니메이션(호흡·기울기·피격 흔들림·쓰러짐)이 모델 전체를 움직입니다. 자체 애니메이션이 있는 모델은 끄세요 |
@@ -107,6 +107,6 @@ Assets/Fortress/Cards/Spearman/                              창병 전용 효�
 
 - 맵 데이터: `Assets/Fortress/FortressMapDefinition.cs`, 적용: `FortressGame.MapSelection.cs`, 기본 맵 원본: `FortressBuiltInMaps.cs`
 - 발판 외형 생성: `FortressGame.World3D.cs`
-- 캐릭터 외형: `FortressFighterModel.cs`, 기본 도형·질감: `FortressModel3D.cs`
+- 캐릭터 외형: `FortressFighterModel.cs`, 기본 발판 질감·활·화살: `FortressModel3D.cs`
 - 카드: `Assets/Fortress/Cards/` (세트 `FortressCardSet.cs`, 그림 찾기 `FortressCardArt.cs`, 직업별 하위 폴더)
 - 기본 맵·카드 세트 에셋 생성·복원: `Assets/Editor/FortressMapAssets.cs`, `Assets/Editor/FortressCardAssets.cs`
