@@ -116,3 +116,9 @@ FortressMapCarousel Play Mode 검증을 다시 시도했습니다. Unity 스크�
 
 ## 2026-09-28 18:00:00 (KST) · Claude
 직업 고유 능력을 직업 모듈로 분리했습니다(게임 규칙 동작은 그대로). 공용 전투 코드(FortressGame, 카드, 연사, HUD)는 직업 이름·궁수 함수를 더 이상 부르지 않고, FortressGame.PlayerClass.cs의 PlayerClass(FortressClassRuntime)를 정해진 시점(전투/턴 시작, 공격 확정, 발사 수, 화살별 효과, 대상 추가 피해, 적 공격 약화, 적중, 빗맞음, 카드, HUD 문구, 정리)에 호출합니다. 모듈은 IFortressBattle로만 게임에 접근합니다. 궁수 화살·회수·출혈·약화·궁수 카드 효과는 Assets/Fortress/Classes/Archer의 FortressArcherRuntime으로 옮겼고, Fighter의 bleed/weakened 필드와 BattleRules의 화살·출혈 수치를 제거해 Archer Class 에셋(FortressArcherClass, 기본값 동일)으로 옮겼습니다. 창병 모듈은 빈 틀입니다. 캐릭터 데이터에 classBehaviour 칸을 추가했고(비우면 무기별 기본 직업), 카드 세트 에셋 폴더를 FortressContent/Cards → FortressContent/Classes로 옮겼습니다. 에디터의 FortressClassAssets(구 FortressCardAssets)가 직업 에셋·카드 세트를 만들고 궁수·창병 데이터에 연결합니다. HUD의 화살 수·출혈 표시는 모듈이 주는 문구로 바뀌었고, 게임 API의 UsesArrows/ArrowCount/BleedThresholdNow 등과 ActorInfo.bleed는 제거했습니다(ActorInfo.status로 대체). PlayMode 테스트 2개를 궁수 모듈 기준으로 수정했습니다. 게임·에디터·테스트 어셈블리 컴파일 오류 0건이며, Unity 에디터가 열려 있어 Play Mode 테스트는 실행하지 못했습니다. vscode 작업 기록 규칙을 적용했습니다.
+
+## 2026-09-28 13:42:52 (KST) · Claude
+전투 화면 왼쪽 아래 캐릭터 정보창(Character Info)에서 마우스로 누르는 조작 버튼(◀/▶ 이동, 점프, 내려가기, 발사)과 조작 안내 문구를 숨기고 창 높이를 272→204px로 줄였습니다(아래쪽 기준 위치 유지). 조작은 키보드(A/D·W·S·↑↓·Space·Tab)로 그대로 합니다. 버튼 오브젝트는 HUD·테스트가 참조하므로 삭제하지 않고 비활성화했습니다. 에디터가 예전 씬을 들고 있어도 적용되도록 FortressHud.Bind(CompactCharacterBox)에서 실행 시에도 같은 처리를 하며, 에디터 FortressHudLayout.ApplyChargeLayout도 같은 배치를 만들도록 고쳤습니다. Unity 화면 확인은 하지 못했습니다. vscode 작업 기록 규칙을 적용했습니다.
+
+## 2026-09-28 13:58:56 (KST) · Claude
+투사체가 더 빨리 날아가도록 전투 규칙에 shotSpeed(비행 재생 속도 배율, 기본 2.5)를 추가했습니다. 본 발사(FortressGame)와 연사(FortressGame.Volley)의 비행 시뮬레이션 시간에만 곱하므로 궤적·낙하 지점·조준선·적 조준은 바뀌지 않고 날아가는 시간만 약 1/2.5로 짧아집니다. 적 투사체에도 똑같이 적용됩니다. FortressContent/Data/BattleRules 에셋에서 값을 조절할 수 있습니다. Unity 화면 확인은 하지 못했습니다. vscode 작업 기록 규칙을 적용했습니다.

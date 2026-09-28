@@ -99,10 +99,19 @@ public static class FortressHudLayout
         var charge = hud.fireButton.GetComponent<FortressHoldButton>();
         if (!charge) charge = Undo.AddComponent<FortressHoldButton>(hud.fireButton.gameObject);
         charge.game = hud.game; charge.charge = true;
+        // Keyboard-only controls: the on-screen buttons stay (HUD/tests reference them) but are hidden, and the box shrinks.
+        foreach (var name in new[] { "Move Left", "Move Right", "Jump", "Drop", "Fire", "Movement Help" })
+        {
+            var button = box.Find(name);
+            if (button) { Undo.RecordObject(button.gameObject, "Hide control"); button.gameObject.SetActive(false); }
+        }
+        Undo.RecordObject(box, "Resize character box");
+        box.anchoredPosition = new Vector2(box.anchoredPosition.x, box.anchoredPosition.y - (box.sizeDelta.y - 204));
+        box.sizeDelta = new Vector2(box.sizeDelta.x, 204);
         var help = box.Find("Movement Help")?.GetComponent<Text>();
         if (help)
         {
-            Place((RectTransform)help.transform, 10, 248, 424, 20);
+            Place((RectTransform)help.transform, 10, 204, 424, 20);
             help.text = "A/D 이동 · W 점프 · S 내려가기 · ↑↓ 각도 · Space 길게 눌러 발사 · Tab 턴 종료"; help.fontSize = 12;
         }
         EditorUtility.SetDirty(hud);

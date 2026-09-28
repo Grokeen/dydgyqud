@@ -52,7 +52,7 @@ namespace MiniFortress
                     if (shot.delay > 0) continue;
                     LaunchVolleyArrow(shot);
                 }
-                shot.accumulator += dt;
+                shot.accumulator += dt * arena.rules.shotSpeed;
                 bool done = false;
                 while (shot.accumulator >= ShotStep && !done)
                 {

@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: MiniFortress::MiniFortress.FortressBattleRules
   gravity: 12
   shotStep: 0.0125
+  shotSpeed: 2.5
   jumpSpeed: 11
   jumpCost: 1
   fallDamage: 15

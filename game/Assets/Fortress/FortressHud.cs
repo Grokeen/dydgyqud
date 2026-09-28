@@ -100,7 +100,22 @@ namespace MiniFortress
             var gameTitle = battlePanel.transform.Find("Top Bar/Game Title")?.GetComponent<Text>();
             if (gameTitle) gameTitle.text = GameTitle;
             BuildArrowCountControls();
+            CompactCharacterBox();
             BuildMainMenu();
+        }
+
+        // Controls are keyboard-only: hide the on-screen buttons (still referenced by the HUD and tests) and the
+        // key help line, then shrink the character box to the rows that are left, keeping its bottom edge in place.
+        void CompactCharacterBox()
+        {
+            if (!fireButton) return;
+            var box = (RectTransform)fireButton.transform.parent;
+            foreach (var name in new[] { "Move Left", "Move Right", "Jump", "Drop", "Fire", "Movement Help" })
+                box.Find(name)?.gameObject.SetActive(false);
+            const float height = 204;
+            float bottom = -box.anchoredPosition.y + box.sizeDelta.y;
+            box.anchoredPosition = new Vector2(box.anchoredPosition.x, -(bottom - height));
+            box.sizeDelta = new Vector2(box.sizeDelta.x, height);
         }
 
         // 코덱스code(CodexCode): Unity 직렬화 중 Resources.Load를 호출하면 에디터가 컴포넌트를 복원하는 동안 예외가 납니다.

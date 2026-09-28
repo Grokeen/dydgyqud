@@ -158,7 +158,7 @@ namespace MiniFortress
             }
             else if (phase == Phase.Flight)
             {
-                accumulator += dt;
+                accumulator += dt * arena.rules.shotSpeed;
                 while (accumulator >= ShotStep && phase == Phase.Flight)
                 {
                     accumulator -= ShotStep; Integrate(ref shotPosition, ref shotVelocity); shotAge += ShotStep;
