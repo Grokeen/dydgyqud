@@ -8,7 +8,7 @@ namespace MiniFortress
         [Min(.01f)] public float gravity = 12;
         [Min(.001f)] public float shotStep = .0125f;
         [Tooltip("투사체 비행 재생 속도 배율. 궤적·낙하 지점은 그대로이고 날아가는 시간만 짧아집니다.")]
-        [Min(.1f)] public float shotSpeed = 2.5f;
+        [Min(.1f)] public float shotSpeed = 1.5f;
         [Min(0)] public float jumpSpeed = 11;
         [Min(0)] public float jumpCost = 1;
         [Min(0)] public int fallDamage = 15;

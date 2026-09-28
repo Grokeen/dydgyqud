@@ -121,4 +121,4 @@ FortressMapCarousel Play Mode 검증을 다시 시도했습니다. Unity 스크�
 전투 화면 왼쪽 아래 캐릭터 정보창(Character Info)에서 마우스로 누르는 조작 버튼(◀/▶ 이동, 점프, 내려가기, 발사)과 조작 안내 문구를 숨기고 창 높이를 272→204px로 줄였습니다(아래쪽 기준 위치 유지). 조작은 키보드(A/D·W·S·↑↓·Space·Tab)로 그대로 합니다. 버튼 오브젝트는 HUD·테스트가 참조하므로 삭제하지 않고 비활성화했습니다. 에디터가 예전 씬을 들고 있어도 적용되도록 FortressHud.Bind(CompactCharacterBox)에서 실행 시에도 같은 처리를 하며, 에디터 FortressHudLayout.ApplyChargeLayout도 같은 배치를 만들도록 고쳤습니다. Unity 화면 확인은 하지 못했습니다. vscode 작업 기록 규칙을 적용했습니다.
 
 ## 2026-09-28 13:58:56 (KST) · Claude
-투사체가 더 빨리 날아가도록 전투 규칙에 shotSpeed(비행 재생 속도 배율, 기본 2.5)를 추가했습니다. 본 발사(FortressGame)와 연사(FortressGame.Volley)의 비행 시뮬레이션 시간에만 곱하므로 궤적·낙하 지점·조준선·적 조준은 바뀌지 않고 날아가는 시간만 약 1/2.5로 짧아집니다. 적 투사체에도 똑같이 적용됩니다. FortressContent/Data/BattleRules 에셋에서 값을 조절할 수 있습니다. Unity 화면 확인은 하지 못했습니다. vscode 작업 기록 규칙을 적용했습니다.
+투사체가 더 빨리 날아가도록 전투 규칙에 shotSpeed(비행 재생 속도 배율, 기본 1.5)를 추가했습니다. 본 발사(FortressGame)와 연사(FortressGame.Volley)의 비행 시뮬레이션 시간에만 곱하므로 궤적·낙하 지점·조준선·적 조준은 바뀌지 않고 날아가는 시간만 약 1/1.5로 짧아집니다. 적 투사체에도 똑같이 적용됩니다. FortressContent/Data/BattleRules 에셋에서 값을 조절할 수 있습니다. Unity 화면 확인은 하지 못했습니다. vscode 작업 기록 규칙을 적용했습니다.
