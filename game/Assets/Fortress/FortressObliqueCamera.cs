@@ -12,8 +12,9 @@ namespace MiniFortress
     [DisallowMultipleComponent]
     public sealed class FortressObliqueCamera : MonoBehaviour
     {
-        [Tooltip("평면보다 1m 깊은 곳이 화면에서 오른쪽(x)·위쪽(y)으로 밀리는 양")]
-        public Vector2 shear = new Vector2(.14f, .3f);
+        // Zero keeps a true side view (platform fronts only, no tops). Raise y (e.g. .3) to reveal platform tops.
+        [Tooltip("평면보다 1m 깊은 곳이 화면에서 오른쪽(x)·위쪽(y)으로 밀리는 양. 0이면 완전 측면")]
+        public Vector2 shear = Vector2.zero;
         public float planeZ;
         Camera target;
 
