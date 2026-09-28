@@ -18,6 +18,15 @@ MonoBehaviour:
   portrait: {fileID: 21300000, guid: 922235560f12b584d8cbfe34b9c2c62d, type: 3}
   projectile: {fileID: 21300000, guid: 6ddcb402442d6294ca2c590ad1311991, type: 3}
   weapon: 1
+  modelPrefab: {fileID: 0}
+  modelStyle: 0
+  fitModelToHeight: 1
+  modelOffset: {x: 0, y: 0, z: 0}
+  modelRotation: {x: 0, y: 28, z: 0}
+  modelScale: 1
+  useBuiltInBodyMotion: 1
+  weaponModelPrefab: {fileID: 0}
+  projectileModelPrefab: {fileID: 0}
   health: 140
   damage: 40
   blastRadius: 1.5
@@ -28,3 +37,4 @@ MonoBehaviour:
   halfWidth: 0.7
   shoulderHeight: 2.5
   muzzleDistance: 1.6
+  cardSet: {fileID: 11400000, guid: c7e1f6a75f1cea14ebfb49d425b90cc3, type: 2}

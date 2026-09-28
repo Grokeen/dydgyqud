@@ -15,8 +15,23 @@ namespace MiniFortress
         public Sprite portrait;
         public Sprite projectile;
         public FortressWeapon weapon;
-        [Tooltip("3D 캐릭터 모델 모양. Auto는 에셋 이름과 무기로 고릅니다.")]
+        [Header("3D 외형 (비워 두면 기본 도형 모델)")]
+        [Tooltip("캐릭터 3D 모델(FBX/Prefab). +X가 앞, 발이 원점. 비워 두면 Model Style의 기본 도형 모델을 씁니다.")]
+        public GameObject modelPrefab;
+        [Tooltip("기본 도형 모델 모양. Auto는 에셋 이름과 무기로 고릅니다.")]
         public FortressModelStyle modelStyle;
+        [Tooltip("모델 높이를 Height에 맞춰 크기를 자동 조절합니다.")]
+        public bool fitModelToHeight = true;
+        public Vector3 modelOffset;
+        [Tooltip("기본값 Y 28°: 카메라 쪽으로 살짝 돌려 입체감이 보이게 합니다.")]
+        public Vector3 modelRotation = new Vector3(0, 28, 0);
+        [Min(.01f)] public float modelScale = 1;
+        [Tooltip("켜 두면 기본 Animator 클립(호흡·기울기·피격 흔들림)이 모델 전체를 움직입니다. 자체 애니메이션이 있는 모델은 끄세요.")]
+        public bool useBuiltInBodyMotion = true;
+        [Tooltip("손에 든 무기 모델. 원점 = 어깨(조준 회전축), +X = 조준 방향. 비워 두면 기본 활 / 창")]
+        public GameObject weaponModelPrefab;
+        [Tooltip("장전·비행·바닥에 떨어진 화살/창 모델. 원점 = 촉 끝, 자루는 -X 방향. 비워 두면 기본 화살 / 창")]
+        public GameObject projectileModelPrefab;
         [Min(1)] public int health = 120;
         [Min(0)] public int damage = 32;
         [Min(0.01f)] public float blastRadius = 3.5f;
@@ -27,9 +42,10 @@ namespace MiniFortress
         [Min(0.01f)] public float halfWidth = .7f;
         [Min(0)] public float shoulderHeight = 2.5f;
         [Min(0)] public float muzzleDistance = 1.6f;
-        [Tooltip("비워 두면 무기별 기본 덱을 사용합니다.")]
-        public FortressCardEntry[] deck;
+        [Header("카드")]
+        [Tooltip("이 직업의 카드 세트(Assets/FortressContent/Cards/<직업>). 비워 두면 무기별 기본 카드를 사용합니다.")]
+        public FortressCardSet cardSet;
         public string AttackName => weapon == FortressWeapon.Spear ? "창 투척" : "화살 발사";
-        public FortressCardEntry[] Deck => deck != null && deck.Length > 0 ? deck : FortressCardEntry.DefaultDeck(weapon);
+        public FortressCardSet CardSet => cardSet ? cardSet : FortressBuiltInCards.For(weapon);
     }
 }

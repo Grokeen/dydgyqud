@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace MiniFortress
 {
+    // Deck, hand, energy and the effects every class may use (defense, draw, damage, critical, cost discount).
     public sealed partial class FortressGame
     {
         readonly List<FortressCardEntry> drawPile = new List<FortressCardEntry>();
@@ -72,7 +73,11 @@ namespace MiniFortress
                 case FortressCardEffect.CriticalChance: bonusCritical += card.value; break;
                 case FortressCardEffect.Draw: DrawCards(card.value); break;
                 case FortressCardEffect.BattleDamage: battleDamage += card.value; break;
-                default: if (!PlayBleedCard(card)) PlayArrowCard(card); break;
+                // Class-specific effects: Cards/<Class>/FortressGame.<Class>Cards.cs.
+                default:
+                    if (!PlayArcherCard(card) && !PlaySpearmanCard(card))
+                        Debug.LogWarning("FortressGame: 처리하는 직업이 없는 카드 효과입니다: " + card.effect, this);
+                    break;
             }
             message = $"카드 사용 · {card.title}: {card.Description}";
         }

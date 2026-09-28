@@ -3,16 +3,18 @@ using UnityEngine;
 
 namespace MiniFortress
 {
-    // Replaces a fighter prefab's sprite body and weapon with a low-poly 3D figure at runtime.
-    // The prefab hierarchy (Motion / Body / AimPivot / WeaponMotion) and its Animator are unchanged: the figure is
-    // parented under Body and the weapon, so the existing clips still lean, squash, recoil and topple it.
-    // The hidden Body SpriteRenderer keeps receiving the clips' colour keys; they are copied to the meshes as a tint.
+    // Gives a fighter its 3D look at runtime, from its FortressCharacterDefinition:
+    //  - modelPrefab (any FBX/prefab; feet at the origin, facing +X), or a built-in low-poly figure (modelStyle);
+    //  - weaponModelPrefab held at the aim pivot, or the built-in bow (bows only; spears are the loaded projectile);
+    //  - projectileModelPrefab for the loaded/flying/fallen shot, or the built-in arrow or spear.
+    // The prefab hierarchy (Motion / Body / AimPivot / WeaponMotion) and its Animator are unchanged. With
+    // useBuiltInBodyMotion the model sits under Body, so the stock clips lean, squash and topple it; otherwise it
+    // sits under Motion and only follows facing. The hidden Body SpriteRenderer still receives the clips' colour
+    // keys, which are copied to the meshes as a tint (hit flash, death fade). If the model has its own Animator,
+    // every gameplay parameter it also declares (Speed, Grounded, BowAttack, Hit, Dead ...) is forwarded to it.
     [DisallowMultipleComponent]
     public sealed class FortressFighterModel : MonoBehaviour
     {
-        // Turns the figure toward the camera so the side-on view reads as three-quarter.
-        const float TurnTowardCamera = 28;
-
         struct Palette
         {
             public Color skin, tunic, trim, legs, boots, hair, metal, accent, eyes;
@@ -20,9 +22,13 @@ namespace MiniFortress
 
         FortressFighterView view;
         Transform figure;
-        readonly List<(Renderer renderer, Color color)> parts = new List<(Renderer, Color)>();
+        // Every tintable renderer with each material slot's own colour (skinned and multi-material models too).
+        readonly List<(Renderer renderer, Color[] colors)> parts = new List<(Renderer, Color[])>();
+        readonly HashSet<int> modelParameters = new HashSet<int>();
+        Animator modelAnimator;
         MaterialPropertyBlock block;
         Color appliedTint = Color.white;
+        Vector3 figureScale = Vector3.one;
 
         public static FortressModelStyle Resolve(FortressCharacterDefinition definition)
         {
@@ -34,14 +40,23 @@ namespace MiniFortress
             return FortressModelStyle.Archer;
         }
 
-        public static void Attach(FortressFighterView view, FortressCharacterDefinition definition)
+        public static FortressFighterModel Attach(FortressFighterView view, FortressCharacterDefinition definition)
         {
             var model = view.GetComponent<FortressFighterModel>();
             if (!model) model = view.gameObject.AddComponent<FortressFighterModel>();
-            model.Build(view, Resolve(definition), definition.weapon);
+            model.Build(view, definition);
+            return model;
         }
 
-        void Build(FortressFighterView target, FortressModelStyle style, FortressWeapon weapon)
+        // Animator forwarding for models with their own Animator; parameters the model lacks are skipped.
+        public void SetFloat(int id, float value) { if (Forwards(id)) modelAnimator.SetFloat(id, value); }
+        public void SetBool(int id, bool value) { if (Forwards(id)) modelAnimator.SetBool(id, value); }
+        public void SetTrigger(int id) { if (Forwards(id)) modelAnimator.SetTrigger(id); }
+        public void ResetTrigger(int id) { if (Forwards(id)) modelAnimator.ResetTrigger(id); }
+        public void ResetAnimation() { if (modelAnimator && modelAnimator.runtimeAnimatorController) { modelAnimator.Rebind(); modelAnimator.Update(0); } }
+        bool Forwards(int id) => modelAnimator && modelParameters.Contains(id);
+
+        void Build(FortressFighterView target, FortressCharacterDefinition definition)
         {
             if (figure) return;
             view = target;
@@ -49,31 +64,76 @@ namespace MiniFortress
             foreach (var sprite in view.weapon.GetComponentsInChildren<SpriteRenderer>(true)) sprite.enabled = false;
             LayShadowFlat();
 
-            Palette p = PaletteFor(style);
-            figure = FortressModel3D.Group(view.body.transform, "Figure 3D", Vector3.zero, new Vector3(0, TurnTowardCamera, 0));
-            BuildBody(p);
-            switch (style)
+            var parent = definition.useBuiltInBodyMotion ? view.body.transform : view.motion;
+            figure = FortressModel3D.Group(parent, "Figure 3D", definition.modelOffset, definition.modelRotation);
+            if (definition.modelPrefab) BuildCustom(definition);
+            else
             {
-                case FortressModelStyle.Archer: BuildArcher(p); break;
-                case FortressModelStyle.Spearman: BuildSpearman(p); break;
-                case FortressModelStyle.Goblin: BuildGoblin(p); break;
-                case FortressModelStyle.Captain: BuildCaptain(p); break;
+                var style = Resolve(definition);
+                Palette p = PaletteFor(style);
+                BuildBody(p);
+                switch (style)
+                {
+                    case FortressModelStyle.Archer: BuildArcher(p); break;
+                    case FortressModelStyle.Spearman: BuildSpearman(p); break;
+                    case FortressModelStyle.Goblin: BuildGoblin(p); break;
+                    case FortressModelStyle.Captain: BuildCaptain(p); break;
+                }
+                figure.localScale = Vector3.one * definition.modelScale;
+                // A custom body brings its own arms; the built-in figure gets arms that follow the aim.
+                BuildArms(p, definition.weapon);
             }
-            BuildArms(p, weapon);
-            if (weapon == FortressWeapon.Bow)
+            figureScale = figure.localScale;
+
+            if (definition.weaponModelPrefab)
+            {
+                var weapon = Instantiate(definition.weaponModelPrefab, view.weapon).transform;
+                weapon.name = "Weapon 3D"; weapon.localPosition = Vector3.zero;
+                Collect(weapon);
+            }
+            else if (definition.weapon == FortressWeapon.Bow)
             {
                 // Matches the prefab's Bow sprite position; the loaded arrow's tip is at the loaded projectile.
                 var bowSprite = view.weapon.Find("Bow");
                 Collect(FortressModel3D.Bow(view.weapon, bowSprite ? bowSprite.localPosition : new Vector3(1.1f, 0, 0)));
             }
-            Collect(FortressModel3D.Projectile(view.loadedProjectile, weapon));
+            Collect(FortressModel3D.Projectile(view.loadedProjectile, definition));
             Collect(figure);
+        }
+
+        void BuildCustom(FortressCharacterDefinition definition)
+        {
+            var model = Instantiate(definition.modelPrefab, figure).transform;
+            model.name = "Model"; model.localPosition = Vector3.zero;
+            figure.localScale = Vector3.one * definition.modelScale;
+            if (definition.fitModelToHeight && FortressModel3D.TryGetBounds(model, out var bounds) && bounds.size.y > .01f)
+            {
+                // Match the hitbox height and stand the model's lowest point on the feet.
+                float worldHeight = definition.height * view.transform.lossyScale.y;
+                figure.localScale *= worldHeight / bounds.size.y;
+                FortressModel3D.TryGetBounds(model, out bounds);
+                model.position += Vector3.up * (view.transform.position.y - bounds.min.y);
+            }
+            modelAnimator = model.GetComponentInChildren<Animator>();
+            if (modelAnimator && modelAnimator.runtimeAnimatorController)
+            {
+                modelAnimator.applyRootMotion = false;
+                foreach (var parameter in modelAnimator.parameters) modelParameters.Add(parameter.nameHash);
+            }
         }
 
         void Collect(Transform root)
         {
-            foreach (var renderer in root.GetComponentsInChildren<MeshRenderer>(true))
-                if (!parts.Exists(p => p.renderer == renderer)) parts.Add((renderer, renderer.sharedMaterial.color));
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!(renderer is MeshRenderer || renderer is SkinnedMeshRenderer) || parts.Exists(p => p.renderer == renderer)) continue;
+                var materials = renderer.sharedMaterials;
+                var colors = new Color[materials.Length];
+                for (int i = 0; i < materials.Length; i++)
+                    colors[i] = !materials[i] ? Color.white : materials[i].HasProperty("_BaseColor") ? materials[i].GetColor("_BaseColor")
+                        : materials[i].HasProperty("_Color") ? materials[i].GetColor("_Color") : Color.white;
+                parts.Add((renderer, colors));
+            }
         }
 
         // The prefab's ground shadow is a sprite facing the camera; lay it on the platform's top face instead.
@@ -95,15 +155,19 @@ namespace MiniFortress
             if (tint == appliedTint) return;
             appliedTint = tint;
             block ??= new MaterialPropertyBlock();
-            foreach (var (renderer, color) in parts)
+            foreach (var (renderer, colors) in parts)
             {
                 if (!renderer) continue;
-                Color tinted = new Color(color.r * tint.r, color.g * tint.g, color.b * tint.b, color.a);
-                block.Clear(); block.SetColor("_BaseColor", tinted); block.SetColor("_Color", tinted);
-                renderer.SetPropertyBlock(block);
+                for (int i = 0; i < colors.Length; i++)
+                {
+                    Color color = colors[i];
+                    Color tinted = new Color(color.r * tint.r, color.g * tint.g, color.b * tint.b, color.a);
+                    block.Clear(); block.SetColor("_BaseColor", tinted); block.SetColor("_Color", tinted);
+                    renderer.SetPropertyBlock(block, i);
+                }
             }
             // Opaque meshes cannot fade, so the death clip's alpha shrinks the figure into the ground instead.
-            figure.localScale = Vector3.one * Mathf.Lerp(.15f, 1, tint.a);
+            figure.localScale = figureScale * Mathf.Lerp(.15f, 1, tint.a);
         }
 
         static Palette PaletteFor(FortressModelStyle style)

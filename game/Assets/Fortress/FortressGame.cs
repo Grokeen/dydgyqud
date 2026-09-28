@@ -28,6 +28,7 @@ namespace MiniFortress
             public Transform root, weapon, loadedArrow;
             public Transform motion, aimPivot, weaponMotion;
             public Animator animator;
+            public FortressFighterModel model;
             public Vector2 previousFeet;
             public float deathRemaining;
             public SpriteRenderer body;
@@ -79,7 +80,7 @@ namespace MiniFortress
             ownedAssets.Add(square);
             // Map presets (FortressGame.MapSelection) must be set up before the layout is read; lost in a merge once.
             InitializeMapSelection();
-            ApplyMapPreset(MapPresets[0]);
+            ApplyMap(CurrentMap);
             LoadArenaLayout();
             AddFighter(arena.playerClasses[0], starts[0], null);
             var spawns = arena.enemySpawns.GetComponentsInChildren<FortressSpawnPoint>();
@@ -294,13 +295,13 @@ namespace MiniFortress
             current = index;
             phase = Phase.Attack;
             timer = fighters[index].definition.releaseTime;
-            fighters[index].animator.SetTrigger(fighters[index].definition.weapon == FortressWeapon.Spear ? SpearAttackParameter : BowAttackParameter);
+            AnimTrigger(fighters[index], fighters[index].definition.weapon == FortressWeapon.Spear ? SpearAttackParameter : BowAttackParameter);
             message = fighters[index].name + (fighters[index].definition.weapon == FortressWeapon.Spear ? " 창 투척 준비…" : " 활시위를 당기는 중…");
         }
         void LaunchShot()
         {
             int index = current;
-            ShowProjectileModel(arrow, fighters[index].definition.weapon);
+            ShowProjectileModel(arrow, fighters[index].definition);
             arrow.localScale = Vector3.one * fighters[index].root.localScale.x;
             float angle = fighters[index].angle;
             current = index; shotPosition = Origin(index, angle);

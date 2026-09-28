@@ -13,6 +13,8 @@ namespace MiniFortress
         public Transform enemySpawns;
         public FortressCharacterDefinition[] playerClasses;
         public Sprite effectSprite;
+        [Tooltip("메인 메뉴의 맵 목록. 비워 두면 Resources/FortressMaps의 맵 에셋을 모두 사용합니다.")]
+        public FortressMapDefinition[] maps;
         [Tooltip("높은 탄도를 따라 카메라를 확장합니다. 기본 위치와 크기는 Camera에서 편집하세요.")]
         public bool followHighShots = true;
 

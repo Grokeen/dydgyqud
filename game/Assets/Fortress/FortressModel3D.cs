@@ -79,6 +79,34 @@ namespace MiniFortress
             return renderer;
         }
 
+        public static string ProjectileName(FortressCharacterDefinition definition)
+            => definition.projectileModelPrefab ? definition.projectileModelPrefab.name + " 3D"
+             : definition.weapon == FortressWeapon.Spear ? "Spear 3D" : "Arrow 3D";
+
+        // The character's projectile model if set, else the built-in arrow or spear.
+        public static Transform Projectile(Transform parent, FortressCharacterDefinition definition)
+        {
+            if (!definition.projectileModelPrefab) return Projectile(parent, definition.weapon);
+            var model = Object.Instantiate(definition.projectileModelPrefab, parent).transform;
+            model.name = ProjectileName(definition);
+            model.localPosition = Vector3.zero;
+            return model;
+        }
+
+        // Combined world bounds of every renderer under root.
+        public static bool TryGetBounds(Transform root, out Bounds bounds)
+        {
+            bounds = default;
+            bool any = false;
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>())
+            {
+                if (renderer is ParticleSystemRenderer || renderer is TrailRenderer || renderer is LineRenderer) continue;
+                if (!any) { bounds = renderer.bounds; any = true; }
+                else bounds.Encapsulate(renderer.bounds);
+            }
+            return any;
+        }
+
         // Arrow and spear models share the sprite convention: the tip sits at the local origin and the shaft runs to -X.
         public static Transform Projectile(Transform parent, FortressWeapon weapon)
         {

@@ -455,7 +455,7 @@ namespace MiniFortress
                 bool has = i < game.RewardCount;
                 slot.gameObject.SetActive(has);
                 if (!has) continue;
-                slot.Show(game.RewardTitle(i), game.RewardCost(i), game.RewardDescription(i), true);
+                slot.Show(game.RewardTitle(i), game.RewardCost(i), game.RewardDescription(i), true, game.RewardArtwork(i));
                 var outline = slot.GetComponent<Outline>();
                 int rarity = (int)game.RewardRarity(i);
                 if (outline && rarity >= 0 && rarity < rarityColors.Length) outline.effectColor = rarityColors[rarity];

@@ -32,6 +32,22 @@ namespace MiniFortress
             }
             return true;
         }
+        // The 3D bow/spear reaches muzzleDistance ahead of the body, toward the player. Keep that reach out of
+        // walls and platforms above the feet so the weapon never sinks into them; the body check alone uses halfWidth.
+        bool EnemyWeaponClear(int index, float x)
+        {
+            Fighter enemy = fighters[index];
+            float reach = enemy.definition.muzzleDistance * enemy.root.localScale.x;
+            bool facingRight = fighters[0].feet.x >= x;
+            float near = facingRight ? x : x - reach, far = facingRight ? x + reach : x;
+            foreach (Platform p in terrain)
+                if (far > p.left && near < p.right && enemy.feet.y + 0.05f < p.top && enemy.feet.y + Height(enemy) > p.bottom)
+                    return false;
+            return true;
+        }
+        // A step must keep the weapon clear, unless the enemy is already cramped (then it may still walk out).
+        bool EnemyCanStep(int index, float from, float to)
+            => EnemyCanStand(index, to) && (EnemyWeaponClear(index, to) || !EnemyWeaponClear(index, from));
         float ReachableEnemyX(int index, float distance)
         {
             float start = fighters[index].feet.x, last = start;
@@ -39,7 +55,7 @@ namespace MiniFortress
             for (int i = 1; i <= steps; i++)
             {
                 float candidate = start + distance * i / steps;
-                if (!EnemyCanStand(index, candidate)) break;
+                if (!EnemyCanStep(index, last, candidate)) break;
                 last = candidate;
             }
             return last;
@@ -116,7 +132,7 @@ namespace MiniFortress
             if (phase != Phase.EnemyMove) return;
             Fighter enemy = fighters[current];
             float next = Mathf.MoveTowards(enemy.feet.x, enemyMoveTarget, EnemyMoveSpeed * Mathf.Clamp(dt, 0, 0.05f));
-            bool blocked = !EnemyCanStand(current, next);
+            bool blocked = !EnemyCanStep(current, enemy.feet.x, next);
             if (!blocked) { enemyMoveSpent += Mathf.Abs(next - enemy.feet.x); enemy.feet.x = next; }
             if (blocked || Mathf.Abs(enemy.feet.x - enemyMoveTarget) < 0.01f)
             {

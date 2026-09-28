@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 93089ad998377d345a321865f1d3b9d6, type: 3}
+  m_Name: Spearman Cards
+  m_EditorClassIdentifier: MiniFortress::MiniFortress.FortressCardSet
+  className: Spearman
+  artFolder: Spearman
+  starterDeck:
+  - title: "\uCC3D"
+    effect: 2
+    value: 15
+    copies: 4
+    cost: 1
+    count: 0
+    exhaust: 0
+    rarity: 0
+    text: 
+    art: {fileID: 0}
+  - title: "\uBC29\uC5B4"
+    effect: 1
+    value: 10
+    copies: 4
+    cost: 1
+    count: 0
+    exhaust: 0
+    rarity: 0
+    text: 
+    art: {fileID: 0}
+  - title: "\uCC3D \uD06C\uB9AC\uD2F0\uCEEC"
+    effect: 3
+    value: 10
+    copies: 2
+    cost: 1
+    count: 0
+    exhaust: 0
+    rarity: 0
+    text: 
+    art: {fileID: 0}
+  rewardPool:
+  - title: "\uCC3D"
+    effect: 2
+    value: 15
+    copies: 1
+    cost: 1
+    count: 0
+    exhaust: 0
+    rarity: 0
+    text: 
+    art: {fileID: 0}
+  - title: "\uBC29\uC5B4"
+    effect: 1
+    value: 10
+    copies: 1
+    cost: 1
+    count: 0
+    exhaust: 0
+    rarity: 0
+    text: 
+    art: {fileID: 0}
+  - title: "\uCC3D \uD06C\uB9AC\uD2F0\uCEEC"
+    effect: 3
+    value: 10
+    copies: 1
+    cost: 1
+    count: 0
+    exhaust: 0
+    rarity: 1
+    text: 
+    art: {fileID: 0}

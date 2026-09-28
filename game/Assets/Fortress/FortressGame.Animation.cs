@@ -15,6 +15,13 @@ namespace MiniFortress
         static readonly int SpearAttackParameter = Animator.StringToHash("SpearAttack");
         static readonly int HitParameter = Animator.StringToHash("Hit");
         static readonly int IdleState = Animator.StringToHash("Base Layer.Idle");
+        // Every gameplay animation parameter goes to the prefab's Animator and, when the character uses its own
+        // 3D model with an Animator, to that model as well (FortressFighterModel skips parameters it lacks).
+        static void AnimFloat(Fighter f, int id, float value) { f.animator.SetFloat(id, value); if (f.model) f.model.SetFloat(id, value); }
+        static void AnimBool(Fighter f, int id, bool value) { f.animator.SetBool(id, value); if (f.model) f.model.SetBool(id, value); }
+        static void AnimTrigger(Fighter f, int id) { f.animator.SetTrigger(id); if (f.model) f.model.SetTrigger(id); }
+        static void AnimResetTrigger(Fighter f, int id) { f.animator.ResetTrigger(id); if (f.model) f.model.ResetTrigger(id); }
+
         void UpdateFighterAnimation(int index, float dt)
         {
             Fighter fighter = fighters[index];
@@ -29,10 +36,10 @@ namespace MiniFortress
             float speed = dt > 0 ? Mathf.Abs(fighter.feet.x - fighter.previousFeet.x) / dt : 0;
             fighter.previousFeet = fighter.feet;
             bool onGround = index != 0 || grounded;
-            fighter.animator.SetFloat(SpeedParameter, speed);
-            fighter.animator.SetBool(GroundedParameter, onGround);
-            fighter.animator.SetFloat(VerticalSpeedParameter, index == 0 ? fallSpeed : 0);
-            fighter.animator.SetBool(AimingParameter, current == index &&
+            AnimFloat(fighter, SpeedParameter, speed);
+            AnimBool(fighter, GroundedParameter, onGround);
+            AnimFloat(fighter, VerticalSpeedParameter, index == 0 ? fallSpeed : 0);
+            AnimBool(fighter, AimingParameter, current == index &&
                 ((phase == Phase.Aim && !playerHasAttacked) || phase == Phase.EnemyAim));
         }
 
@@ -41,12 +48,12 @@ namespace MiniFortress
             if (fighter.hp <= 0)
             {
                 fighter.deathRemaining = DeathVisualDuration;
-                fighter.animator.ResetTrigger(BowAttackParameter);
-                fighter.animator.ResetTrigger(SpearAttackParameter);
-                fighter.animator.ResetTrigger(HitParameter);
-                fighter.animator.SetBool(DeadParameter, true);
+                AnimResetTrigger(fighter, BowAttackParameter);
+                AnimResetTrigger(fighter, SpearAttackParameter);
+                AnimResetTrigger(fighter, HitParameter);
+                AnimBool(fighter, DeadParameter, true);
             }
-            else fighter.animator.SetTrigger(HitParameter);
+            else AnimTrigger(fighter, HitParameter);
         }
 
         void ResetFighterAnimation(Fighter fighter)
@@ -55,16 +62,17 @@ namespace MiniFortress
             fighter.deathRemaining = 0;
             fighter.previousFeet = fighter.feet;
             fighter.animator.Rebind();
-            fighter.animator.SetFloat(SpeedParameter, 0);
-            fighter.animator.SetFloat(VerticalSpeedParameter, 0);
-            fighter.animator.SetBool(GroundedParameter, true);
-            fighter.animator.SetBool(AimingParameter, false);
-            fighter.animator.SetBool(DeadParameter, false);
-            fighter.animator.ResetTrigger(BowAttackParameter);
-            fighter.animator.ResetTrigger(SpearAttackParameter);
-            fighter.animator.ResetTrigger(HitParameter);
+            AnimFloat(fighter, SpeedParameter, 0);
+            AnimFloat(fighter, VerticalSpeedParameter, 0);
+            AnimBool(fighter, GroundedParameter, true);
+            AnimBool(fighter, AimingParameter, false);
+            AnimBool(fighter, DeadParameter, false);
+            AnimResetTrigger(fighter, BowAttackParameter);
+            AnimResetTrigger(fighter, SpearAttackParameter);
+            AnimResetTrigger(fighter, HitParameter);
             fighter.animator.Play(IdleState, 0, 0);
             fighter.animator.Update(0);
+            if (fighter.model) fighter.model.ResetAnimation();
         }
     }
 }

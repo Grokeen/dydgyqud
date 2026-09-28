@@ -39,14 +39,14 @@ namespace MiniFortress
         void StartRun()
         {
             runDeck.Clear(); rewards.Clear(); choosingReward = false; stage = 1;
-            foreach (var card in fighters[0].definition.Deck)
+            foreach (var card in fighters[0].definition.CardSet.starterDeck)
                 if (card != null) for (int i = 0; i < card.copies; i++) runDeck.Add(card);
         }
 
         void OfferRewards()
         {
             rewards.Clear();
-            var pool = new List<FortressCardEntry>(FortressCardEntry.RewardPool(fighters[0].definition.weapon));
+            var pool = new List<FortressCardEntry>(fighters[0].definition.CardSet.rewardPool);
             pool.RemoveAll(card => card.rarity == FortressCardRarity.Legend);
             while (rewards.Count < RewardChoices && pool.Count > 0)
             {

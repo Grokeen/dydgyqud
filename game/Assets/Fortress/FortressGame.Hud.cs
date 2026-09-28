@@ -58,7 +58,7 @@ namespace MiniFortress
         public string PendingAttackBuffs => PendingBuffText();
         public string CardTitle(int index) => hand[index].title;
         public string CardDescription(int index) => hand[index].Description;
-        public Sprite CardArtwork(int index) => null;
+        public Sprite CardArtwork(int index) => FortressCardArt.For(hand[index], fighters[0].definition.CardSet);
         public int CardCost(int index) => EffectiveCost(hand[index]);
         public int BleedThresholdNow => BleedThreshold;
         public bool UsesArrows => fighters.Count > 0 && fighters[0].definition.weapon == FortressWeapon.Bow;
@@ -95,6 +95,7 @@ namespace MiniFortress
         public string RewardDescription(int index) => rewards[index].Description;
         public int RewardCost(int index) => rewards[index].cost;
         public FortressCardRarity RewardRarity(int index) => rewards[index].rarity;
+        public Sprite RewardArtwork(int index) => FortressCardArt.For(rewards[index], fighters[0].definition.CardSet);
         public void RequestChooseReward(int index) { if (ready) ChooseReward(index); }
         public void RequestSkipReward() { if (ready) SkipReward(); }
         public void RequestRestart() { if (ready && phase != Phase.Selecting) Restart(); }

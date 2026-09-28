@@ -1,0 +1,118 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e5253cfdae0533e4b908003e3d71be77, type: 3}
+  m_Name: "02 \uB2EC\uBE5B \uD611\uACE1"
+  m_EditorClassIdentifier: MiniFortress::MiniFortress.FortressMapDefinition
+  order: 1
+  displayName: "\uB2EC\uBE5B \uD611\uACE1"
+  description: "\uC808\uBCBD \uC0AC\uC774\uB97C \uC624\uB974\uB294 \uACC4\uB2E8\uAE38"
+  background: {fileID: 21300000, guid: 75ccb26f813f4f0c8782401707e758bf, type: 3}
+  preview: {fileID: 0}
+  tint: {r: 0.82, g: 0.9, b: 1, a: 1}
+  groundLook:
+    model: {fileID: 0}
+    fit: 0
+    bodyMaterial: {fileID: 0}
+    capMaterial: {fileID: 0}
+    texture: {fileID: 0}
+    textureTile: 2
+    overrideColors: 0
+    bodyColor: {r: 0.5, g: 0.54, b: 0.6, a: 1}
+    capColor: {r: 0.74, g: 0.72, b: 0.66, a: 1}
+  dropThroughLook:
+    model: {fileID: 0}
+    fit: 0
+    bodyMaterial: {fileID: 0}
+    capMaterial: {fileID: 0}
+    texture: {fileID: 0}
+    textureTile: 2
+    overrideColors: 0
+    bodyColor: {r: 0.5, g: 0.54, b: 0.6, a: 1}
+    capColor: {r: 0.74, g: 0.72, b: 0.66, a: 1}
+  platforms:
+  - name: Platform 1
+    left: 0
+    right: 18
+    top: 25
+    bottom: 20
+    dropThrough: 0
+    model: {fileID: 0}
+  - name: Platform 2
+    left: 18
+    right: 34
+    top: 21
+    bottom: 19.8
+    dropThrough: 1
+    model: {fileID: 0}
+  - name: Platform 3
+    left: 34
+    right: 51
+    top: 19
+    bottom: 17.8
+    dropThrough: 0
+    model: {fileID: 0}
+  - name: Platform 4
+    left: 53
+    right: 69
+    top: 22
+    bottom: 20.8
+    dropThrough: 1
+    model: {fileID: 0}
+  - name: Platform 5
+    left: 69
+    right: 85
+    top: 26
+    bottom: 24.8
+    dropThrough: 0
+    model: {fileID: 0}
+  - name: Platform 6
+    left: 85
+    right: 102
+    top: 30
+    bottom: 28.8
+    dropThrough: 0
+    model: {fileID: 0}
+  - name: Platform 7
+    left: 30
+    right: 42
+    top: 24
+    bottom: 23.2
+    dropThrough: 0
+    model: {fileID: 0}
+  - name: Platform 8
+    left: 55
+    right: 67
+    top: 27
+    bottom: 26.2
+    dropThrough: 0
+    model: {fileID: 0}
+  - name: Platform 9
+    left: 75
+    right: 87
+    top: 32
+    bottom: 31.2
+    dropThrough: 0
+    model: {fileID: 0}
+  playerSpawn: {x: 8, y: 25}
+  enemies:
+  - displayName: "\uC11C\uCABD \uC808\uBCBD \uC0AC\uC218"
+    position: {x: 27, y: 21}
+    character: {fileID: 11400000, guid: a51cc5e62e3ce3645880d7694931082c, type: 2}
+  - displayName: "\uD611\uACE1 \uB2E4\uB9AC \uD30C\uC218\uAFBC"
+    position: {x: 46, y: 19}
+    character: {fileID: 11400000, guid: eb296674952aa2c4eaa3c484c6a05be5, type: 2}
+  - displayName: "\uC0C1\uB2E8 \uACBD\uBE44\uBCD1"
+    position: {x: 64, y: 22}
+    character: {fileID: 11400000, guid: a51cc5e62e3ce3645880d7694931082c, type: 2}
+  - displayName: "\uBD09\uC6B0\uB9AC \uB300\uC7A5"
+    position: {x: 94, y: 30}
+    character: {fileID: 11400000, guid: a51cc5e62e3ce3645880d7694931082c, type: 2}
