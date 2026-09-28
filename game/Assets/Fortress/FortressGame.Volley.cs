@@ -14,7 +14,7 @@ namespace MiniFortress
             public Vector2 position, velocity;
             public float angle, delay, age, accumulator;
             public bool launched, critical;
-            public ShotMods mods;
+            public FortressShotMods mods;
             public VolleyTrail trail;
         }
         // The same glowing tail and head the first arrow gets, one per extra arrow; the tail fades after landing.
@@ -64,11 +64,11 @@ namespace MiniFortress
                         hitNote = "";
                         int blocked = 0, total = ApplyBlast(0, shot.position, hit, shot.critical, ref blocked, shot.mods);
                         if (total > 0) message = (shot.critical ? "치명타! " : "") + "연사 명중! 피해 " + total + hitNote;
-                        else PlayerArrowMissed(shot.position, shot.velocity, true);
+                        else PlayerClass.OnMiss(shot.position, shot.velocity, true);
                         Puff(shot.position);
                         done = true;
                     }
-                    else if (ShotExpired(shot.position, shot.age)) { PlayerArrowMissed(shot.position, shot.velocity, false); done = true; }
+                    else if (ShotExpired(shot.position, shot.age)) { PlayerClass.OnMiss(shot.position, shot.velocity, false); done = true; }
                 }
                 shot.view.position = shot.position;
                 shot.view.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(shot.velocity.y, shot.velocity.x) * Mathf.Rad2Deg);
@@ -102,7 +102,7 @@ namespace MiniFortress
             shot.position = Origin(0, shot.angle);
             shot.velocity = Direction(0, shot.angle) * player.power * (1 + Random.Range(-spread, spread));
             shot.critical = Random.Range(0, 100) < shotCriticalChance;
-            shot.mods = NextArrowMods();
+            shot.mods = PlayerClass.NextShotMods();
             shot.view = ProjectileObject("Volley arrow", player.definition, shot.position);
             shot.view.localScale = Vector3.one * player.root.localScale.x;
             shot.trail = CreateVolleyTrail();
@@ -181,7 +181,7 @@ namespace MiniFortress
             fadingTrails.Clear();
             foreach (var (view, _) in volleyPuffs) if (view) Destroy(view.gameObject);
             volleyArrows.Clear(); volleyPuffs.Clear();
-            ClearFallenArrows();
+            playerClassRuntime?.ClearVisuals();
         }
     }
 }

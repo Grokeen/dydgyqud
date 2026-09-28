@@ -25,7 +25,7 @@ namespace MiniFortress
             Shuffle(drawPile);
             block = battleDamage = bonusShots = bonusDamage = bonusCritical = 0;
             volleyRemaining = shotDamageBonus = shotCriticalChance = costDiscount = 0; shotCritical = false;
-            ResetBleedState(); ResetArrows();
+            PlayerClass.OnBattleStart();
         }
         static void Shuffle(List<FortressCardEntry> cards)
         {
@@ -35,7 +35,7 @@ namespace MiniFortress
         {
             discardPile.AddRange(hand); hand.Clear();
             energy = arena.rules.cardEnergy; block = 0;
-            ResetTurnBleedEffects(); RefillArrows();
+            PlayerClass.OnPlayerTurnStart();
             DrawCards(arena.rules.handSize);
         }
         // An empty draw pile reshuffles the discard pile back in; the hand never exceeds maxHandSize.
@@ -73,19 +73,19 @@ namespace MiniFortress
                 case FortressCardEffect.CriticalChance: bonusCritical += card.value; break;
                 case FortressCardEffect.Draw: DrawCards(card.value); break;
                 case FortressCardEffect.BattleDamage: battleDamage += card.value; break;
-                // Class-specific effects: Cards/<Class>/FortressGame.<Class>Cards.cs.
+                // Class-specific effects are handled by the player's class module (Assets/Fortress/Classes/<Class>).
                 default:
-                    if (!PlayArcherCard(card) && !PlaySpearmanCard(card))
+                    if (!PlayerClass.PlayCard(card))
                         Debug.LogWarning("FortressGame: 처리하는 직업이 없는 카드 효과입니다: " + card.effect, this);
                     break;
             }
             message = $"카드 사용 · {card.title}: {card.Description}";
         }
-        // The archer looses every arrow held (plus card extras, up to the cap) in one attack.
+        // The class decides how many projectiles the attack looses (the archer: every arrow held, plus card extras).
         void ConsumeAttackBuffs()
         {
-            LockAttackBuffs();
-            volleyRemaining = TakeArrowsForAttack(bonusShots) - 1;
+            PlayerClass.OnAttackCommitted();
+            volleyRemaining = PlayerClass.ShotsForAttack(bonusShots) - 1;
             shotDamageBonus = bonusDamage; shotCriticalChance = bonusCritical;
             bonusShots = bonusDamage = bonusCritical = 0;
         }
@@ -93,7 +93,7 @@ namespace MiniFortress
         int ShotDamage(int index, bool critical)
         {
             int damage = fighters[index].definition.damage + (index == 0 ? shotDamageBonus + battleDamage : 0);
-            if (index == 0) damage = Mathf.Max(0, damage * attackMultiplier);
+            if (index == 0) damage = Mathf.Max(0, damage * PlayerClass.DamageMultiplier);
             return critical && index == 0 ? Mathf.RoundToInt(damage * arena.rules.criticalMultiplier) : damage;
         }
         int AbsorbWithBlock(int damage)
@@ -106,7 +106,7 @@ namespace MiniFortress
             if (bonusShots > 0) parts.Add($"+{bonusShots}발");
             if (bonusDamage > 0) parts.Add($"피해 +{bonusDamage}");
             if (bonusCritical > 0) parts.Add($"치명타 {Mathf.Min(bonusCritical, 100)}%");
-            string bleed = PendingBleedText(); if (bleed.Length > 0) parts.Add(bleed);
+            string classText = PlayerClass.PendingAttackText; if (classText.Length > 0) parts.Add(classText);
             return parts.Count == 0 ? "없음" : string.Join(", ", parts);
         }
     }

@@ -112,7 +112,7 @@ namespace MiniFortress
             for (int i = 0; i < mapPreviewSprites.Length; i++) mapPreviewSprites[i] = game.MapPreviewSprite(i);
         }
 
-        // 코덱스code(CodexCode): 궁수 본사격의 발사량을 1발 단위로 정하는 UI입니다. 소모량과 실제 화살 발사는 FortressGame이 처리합니다.
+        // 코덱스code(CodexCode): 공격 버튼 위 직업 자원 표시(궁수: 화살 수). 문구는 플레이어 직업 모듈이 정합니다.
         void BuildArrowCountControls()
         {
             if (!fireButton) return;
@@ -299,7 +299,7 @@ namespace MiniFortress
             bool rewardScreen = rewardPanel && game.IsChoosingReward;
             UpdateMapChoiceHighlight();
             if (arrowCountLabel)
-                arrowCountLabel.text = game.UsesArrows ? $"화살 {game.ArrowCount}/{game.MaxArrowCount} · 일제 발사" : "";
+                arrowCountLabel.text = game.AttackResourceText;
             selectionPanel.SetActive(selecting && !onMainMenu);
             battlePanel.SetActive(!selecting && !onMainMenu && !rewardScreen);
             if (rewardPanel) rewardPanel.SetActive(rewardScreen && !onMainMenu);
@@ -315,8 +315,8 @@ namespace MiniFortress
             var player = game.GetActor(0);
             playerPortrait.sprite = player.portrait;
             // Gauges take over health and movement; the status text keeps whatever has no gauge.
-            string quiver = game.UsesArrows ? $" · 화살 {game.ArrowCount}/{game.MaxArrowCount}"
-                + (game.RecoveredArrowsNextTurn > 0 ? $" (+{game.RecoveredArrowsNextTurn})" : "") : "";
+            string classStatus = game.PlayerClassStatus;
+            string quiver = string.IsNullOrEmpty(classStatus) ? "" : " · " + classStatus;
             playerStatus.text = healthFill ? player.name + quiver : moveFill ? $"{player.name}\nHP {player.hp} / {player.maxHp}"
                 : $"{player.name}\nHP {player.hp} / {player.maxHp}\n이동 {game.MovementRemaining:0.0} / {game.PlayerMovementLimit:0.#} m";
             if (healthFill)
@@ -349,7 +349,7 @@ namespace MiniFortress
                       $"에너지 {game.CardEnergy} / {game.MaxCardEnergy}\n다음 공격: {game.PendingAttackBuffs}";
             turnText.text = $"턴 {game.Round}";
             var actingEnemy = game.CurrentActor > 0 ? game.GetActor(game.CurrentActor) : default;
-            enemyStatus.text = $"Stage {game.Stage} · Enemies {game.LivingEnemies}/{game.EnemyCount}" + (game.CurrentActor > 0 ? $"\n{actingEnemy.name} · Bleed {actingEnemy.bleed}" : "");
+            enemyStatus.text = $"Stage {game.Stage} · Enemies {game.LivingEnemies}/{game.EnemyCount}" + (game.CurrentActor > 0 ? $"\n{actingEnemy.name}" + (string.IsNullOrEmpty(actingEnemy.status) ? "" : " · " + actingEnemy.status) : "");
             messageText.text = resultText.text = game.Message;
             attackText.text = game.HasAttacked ? "공격 완료" : game.IsCharging ? "위력 모으는 중…" : game.CurrentAttackName + " [Space]";
             aimText.text = $"각도 {game.Angle:0}°";
@@ -374,8 +374,8 @@ namespace MiniFortress
                     var rect = (RectTransform)bar.transform;
                     rect.pivot = new Vector2(.5f, 0);
                     rect.anchorMin = rect.anchorMax = new Vector2(view.x, view.y); rect.anchoredPosition = Vector2.zero;
-                    string bleed = actor.bleed > 0 ? $"  출혈 {actor.bleed}/{game.BleedThresholdNow}" : "";
-                    bar.Show(null, $"{actor.hp}/{actor.maxHp}{bleed}", actor.hp, actor.maxHp, false);
+                    string status = string.IsNullOrEmpty(actor.status) ? "" : "  " + actor.status;
+                    bar.Show(null, $"{actor.hp}/{actor.maxHp}{status}", actor.hp, actor.maxHp, false);
                 }
                 turns[i].Show(actor.portrait, actor.hp > 0 ? actor.name : "처치", actor.hp, actor.maxHp, game.CurrentActor == i && !game.IsFinished);
             }

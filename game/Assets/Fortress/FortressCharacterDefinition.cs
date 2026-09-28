@@ -42,10 +42,15 @@ namespace MiniFortress
         [Min(0.01f)] public float halfWidth = .7f;
         [Min(0)] public float shoulderHeight = 2.5f;
         [Min(0)] public float muzzleDistance = 1.6f;
+        [Header("직업")]
+        [Tooltip("직업 모듈(Assets/FortressContent/Classes/<직업>/<직업> Class). 고유 능력·수치·카드 효과를 담당합니다. 비워 두면 무기별 기본 직업(활 → 궁수, 창 → 창병). 적은 쓰지 않습니다.")]
+        public FortressClassBehaviour classBehaviour;
         [Header("카드")]
-        [Tooltip("이 직업의 카드 세트(Assets/FortressContent/Cards/<직업>). 비워 두면 무기별 기본 카드를 사용합니다.")]
+        [Tooltip("이 직업의 카드 세트(Assets/FortressContent/Classes/<직업>/<직업> Cards). 비워 두면 무기별 기본 카드를 사용합니다.")]
         public FortressCardSet cardSet;
-        public string AttackName => weapon == FortressWeapon.Spear ? "창 투척" : "화살 발사";
+        public FortressClassBehaviour ClassBehaviour => classBehaviour ? classBehaviour : FortressBuiltInClasses.For(weapon);
+        public string AttackName => !string.IsNullOrWhiteSpace(ClassBehaviour.attackName) ? ClassBehaviour.attackName
+            : weapon == FortressWeapon.Spear ? "창 투척" : "화살 발사";
         public FortressCardSet CardSet => cardSet ? cardSet : FortressBuiltInCards.For(weapon);
     }
 }

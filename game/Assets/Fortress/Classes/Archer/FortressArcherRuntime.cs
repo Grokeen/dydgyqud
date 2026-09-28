@@ -7,61 +7,75 @@ namespace MiniFortress
     // never past the cap (10, raised only by max-arrow cards). One attack looses every arrow held in a quick
     // stream at the same angle, and the count drops back to 1 next turn. Arrows that miss stay on the map;
     // recovering takes the ones nearest the archer off the map and adds them to next turn's volley.
-    public sealed partial class FortressGame
+    // Bleed and weaken are in FortressArcherRuntime.Bleed.cs.
+    public sealed partial class FortressArcherRuntime : FortressClassRuntime
     {
         sealed class FallenArrow { public Transform view; public int round; }
         readonly List<FallenArrow> fallenArrows = new List<FallenArrow>();
         int arrows, maxArrowBonus, recoveredNext, recoveredTotal;
         int stormArrows, stormDamage, attackMultiplier = 1;
 
-        int MaxArrows => arena.rules.baseMaxArrows + maxArrowBonus;
+        public FortressArcherClass Settings { get; }
+        public int ArrowCount => arrows;
+        public int MaxArrowCount => Settings.baseMaxArrows + maxArrowBonus;
+        public int RecoveredNextTurn => recoveredNext;
+        public int FallenArrowCount => fallenArrows.Count;
 
-        void ResetArrows()
+        public FortressArcherRuntime(FortressArcherClass settings, IFortressBattle battle, FortressCharacterDefinition definition)
+            : base(battle, definition) => Settings = settings;
+
+        public override void OnBattleStart()
         {
-            ClearFallenArrows();
+            ClearVisuals();
             maxArrowBonus = recoveredNext = recoveredTotal = stormArrows = stormDamage = 0; attackMultiplier = 1;
-            arrows = arena.rules.baseArrows;
+            arrows = Settings.baseArrows;
+            ResetBleedState();
         }
 
-        void RefillArrows() { arrows = Mathf.Min(MaxArrows, arena.rules.baseArrows + recoveredNext); recoveredNext = 0; }
+        public override void OnPlayerTurnStart()
+        {
+            ResetTurnBleedEffects();
+            RefillArrows();
+        }
 
-        void AddArrows(int count) => arrows = Mathf.Min(MaxArrows, arrows + count);
+        public void RefillArrows() { arrows = Mathf.Min(MaxArrowCount, Settings.baseArrows + recoveredNext); recoveredNext = 0; }
 
-        // Number of arrows this attack looses. Called once when the player attacks; extra comes from multi-shot
-        // cards. Non-archers throw one plus extras.
-        int TakeArrowsForAttack(int extra)
+        void AddArrows(int count) => arrows = Mathf.Min(MaxArrowCount, arrows + count);
+
+        public override void OnAttackCommitted() => LockAttackBuffs();
+
+        // One attack looses every arrow held plus card extras, recalled arrows and storm arrows, up to the cap.
+        public override int ShotsForAttack(int extraShots)
         {
             attackMultiplier = 1;
-            if (!UsesArrows) return 1 + extra;
             var b = lockedBuffs;
-            int shots = arrows + extra; arrows = 0;
+            int shots = arrows + extraShots; arrows = 0;
             if (b.recallAll) shots += Recall(a => true);
-            else if (b.recallLastTurn) shots += Recall(a => a.round == round - 1);
+            else if (b.recallLastTurn) shots += Recall(a => a.round == battle.Round - 1);
             if (b.storm > 0) { int more = shots / 2; shots += more; stormArrows += more; stormDamage = b.storm; }
-            shots = Mathf.Clamp(shots, 1, MaxArrows);
+            shots = Mathf.Clamp(shots, 1, MaxArrowCount);
             if (b.lastArrow > 0 && shots == 1) attackMultiplier = b.lastArrow;
             return shots;
         }
 
+        public override int DamageMultiplier => attackMultiplier;
+
         // A player arrow that hurt nobody: it stays where it landed, unless "빗나간 한 발" recovers it at once.
-        void PlayerArrowMissed(Vector2 at, Vector2 velocity, bool landed)
+        public override void OnMiss(Vector2 at, Vector2 velocity, bool landed)
         {
-            if (!UsesArrows) return;
             if (lockedBuffs.recoverMisses) { recoveredNext++; recoveredTotal++; return; }
             if (!landed) return; // flew off the map
-            var view = ProjectileObject("Fallen arrow", fighters[0].definition, at);
-            view.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg);
-            view.localScale = Vector3.one * fighters[0].root.localScale.x;
-            fallenArrows.Add(new FallenArrow { view = view, round = round });
+            var view = battle.SpawnProjectileView("Fallen arrow", at, Mathf.Atan2(velocity.y, velocity.x) * Mathf.Rad2Deg);
+            fallenArrows.Add(new FallenArrow { view = view, round = battle.Round });
         }
 
         // Removes the fallen arrows nearest the archer; returns how many were picked up.
         int RecoverNearest(int count)
         {
-            Vector2 archer = fighters[0].feet;
+            Vector2 archer = battle.FighterFeet(0);
             fallenArrows.Sort((a, b) => Vector2.Distance(a.view.position, archer).CompareTo(Vector2.Distance(b.view.position, archer)));
             int taken = Mathf.Min(count, fallenArrows.Count);
-            for (int i = 0; i < taken; i++) Destroy(fallenArrows[i].view.gameObject);
+            for (int i = 0; i < taken; i++) Object.Destroy(fallenArrows[i].view.gameObject);
             fallenArrows.RemoveRange(0, taken);
             recoveredTotal += taken;
             return taken;
@@ -71,30 +85,32 @@ namespace MiniFortress
         {
             int taken = 0;
             for (int i = fallenArrows.Count - 1; i >= 0; i--)
-                if (which(fallenArrows[i])) { Destroy(fallenArrows[i].view.gameObject); fallenArrows.RemoveAt(i); taken++; }
+                if (which(fallenArrows[i])) { Object.Destroy(fallenArrows[i].view.gameObject); fallenArrows.RemoveAt(i); taken++; }
             recoveredTotal += taken;
             return taken;
         }
 
-        void ClearFallenArrows()
+        public override void ClearVisuals()
         {
-            foreach (var arrow in fallenArrows) if (arrow.view) Destroy(arrow.view.gameObject);
+            foreach (var arrow in fallenArrows) if (arrow.view) Object.Destroy(arrow.view.gameObject);
             fallenArrows.Clear();
         }
 
         // Arrows beyond the base cap of 10, possible once max-arrow cards have raised the cap.
-        int ExcessArrows => Mathf.Max(0, arrows - arena.rules.baseMaxArrows);
+        int ExcessArrows => Mathf.Max(0, arrows - Settings.baseMaxArrows);
+
+        public override bool PlayCard(FortressCardEntry card) => PlayBleedCard(card) || PlayArrowCard(card);
 
         // Card effects about arrows; returns false for effects handled elsewhere.
-        bool PlayArrowCard(FortressCardEntry card)
+        public bool PlayArrowCard(FortressCardEntry card)
         {
             switch (card.effect)
             {
-                case FortressCardEffect.AddArrows: AddArrows(card.value); if (card.count > 0) DrawCards(card.count); return true;
-                case FortressCardEffect.SloppyArrow: AddArrows(card.value); bonusDamage -= card.count; return true;
+                case FortressCardEffect.AddArrows: AddArrows(card.value); if (card.count > 0) battle.DrawCards(card.count); return true;
+                case FortressCardEffect.SloppyArrow: AddArrows(card.value); battle.AddNextAttackDamage(-card.count); return true;
                 case FortressCardEffect.MaxArrows: maxArrowBonus += card.value; return true;
                 case FortressCardEffect.Bundle:
-                    maxArrowBonus = Mathf.Max(maxArrowBonus, card.count - arena.rules.baseMaxArrows); AddArrows(card.value); return true;
+                    maxArrowBonus = Mathf.Max(maxArrowBonus, card.count - Settings.baseMaxArrows); AddArrows(card.value); return true;
                 case FortressCardEffect.Recover: recoveredNext += RecoverNearest(card.value); return true;
                 case FortressCardEffect.RecoverNow: AddArrows(RecoverNearest(card.value)); return true;
                 case FortressCardEffect.RecoverMaxUp: recoveredNext += RecoverNearest(card.value); maxArrowBonus += 1; return true;
@@ -103,11 +119,14 @@ namespace MiniFortress
                 case FortressCardEffect.RecallAll: pendingBuffs.recallAll = true; return true;
                 case FortressCardEffect.ArrowStorm: pendingBuffs.storm = Mathf.Max(pendingBuffs.storm, card.value); return true;
                 case FortressCardEffect.LastArrow: pendingBuffs.lastArrow = Mathf.Max(pendingBuffs.lastArrow, card.value); return true;
-                case FortressCardEffect.Overflow: case FortressCardEffect.Stockpile: bonusDamage += card.value * ExcessArrows; return true;
-                case FortressCardEffect.StoreArrows: bonusShots += ExcessArrows; return true;
-                case FortressCardEffect.RecoveryExpert: bonusDamage += card.value * recoveredTotal; return true;
+                case FortressCardEffect.Overflow: case FortressCardEffect.Stockpile: battle.AddNextAttackDamage(card.value * ExcessArrows); return true;
+                case FortressCardEffect.StoreArrows: battle.AddNextAttackShots(ExcessArrows); return true;
+                case FortressCardEffect.RecoveryExpert: battle.AddNextAttackDamage(card.value * recoveredTotal); return true;
             }
             return false;
         }
+
+        public override string AttackResourceText => $"화살 {arrows}/{MaxArrowCount} · 일제 발사";
+        public override string PlayerStatusText => $"화살 {arrows}/{MaxArrowCount}" + (recoveredNext > 0 ? $" (+{recoveredNext})" : "");
     }
 }

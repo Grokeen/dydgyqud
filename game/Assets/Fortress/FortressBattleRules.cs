@@ -28,17 +28,7 @@ namespace MiniFortress
         [Min(0)] public float commonChance = 65;
         [Min(0)] public float rareChance = 25;
         [Min(0)] public float heroChance = 10;
-        [Header("Arrows (궁수)")]
-        [Tooltip("매 턴 시작 화살 수. 공격 한 번에 가진 화살을 모두 연속으로 쏩니다.")]
-        [Min(1)] public int baseArrows = 1;
-        [Tooltip("화살 수 상한. 카드로 추가해도 이 수를 넘지 않습니다(최대치 증가 카드로만 늘어남).")]
-        [Min(1)] public int baseMaxArrows = 10;
-        [Header("Bleed")]
-        [Tooltip("출혈이 이만큼 쌓이면 폭발합니다.")]
-        [Min(1)] public int bleedThreshold = 10;
-        [Min(0)] public int bleedBurstDamage = 20;
-        [Tooltip("연쇄 출혈이 퍼지는 거리")]
-        [Min(0)] public float chainBleedRange = 8;
+        // Class-specific numbers (arrows, bleed ...) live in each class asset: Assets/FortressContent/Classes/<Class>.
         [Header("Cards")]
         [Min(0)] public int cardEnergy = 3;
         [Min(1)] public int handSize = 5;

@@ -39,14 +39,16 @@ namespace MiniFortress
         public struct ActorInfo
         {
             public string name;
-            public int hp, maxHp, bleed;
+            public int hp, maxHp;
+            // Class-specific status of an enemy (e.g. the archer's bleed), empty when none.
+            public string status;
             public Sprite portrait;
             public Vector3 head;
         }
         public ActorInfo GetActor(int index)
         {
             var f = fighters[index];
-            return new ActorInfo { name = f.name, hp = f.hp, maxHp = f.maxHp, bleed = f.bleed, portrait = f.definition.portrait,
+            return new ActorInfo { name = f.name, hp = f.hp, maxHp = f.maxHp, status = index > 0 ? PlayerClass.ActorStatusText(index) : "", portrait = f.definition.portrait,
                 head = f.feet + Vector2.up * (Height(f) + .45f) };
         }
         public int CardEnergy => energy;
@@ -60,12 +62,10 @@ namespace MiniFortress
         public string CardDescription(int index) => hand[index].Description;
         public Sprite CardArtwork(int index) => FortressCardArt.For(hand[index], fighters[0].definition.CardSet);
         public int CardCost(int index) => EffectiveCost(hand[index]);
-        public int BleedThresholdNow => BleedThreshold;
-        public bool UsesArrows => fighters.Count > 0 && fighters[0].definition.weapon == FortressWeapon.Bow;
-        public int ArrowCount => arrows;
-        public int MaxArrowCount => MaxArrows;
-        public int RecoveredArrowsNextTurn => recoveredNext;
-        public int FallenArrowCount => fallenArrows.Count;
+        // The player's class module (Assets/Fortress/Classes) and the texts it shows in the HUD.
+        public FortressClassRuntime PlayerClassRuntime => PlayerClass;
+        public string AttackResourceText => PlayerClass.AttackResourceText;
+        public string PlayerClassStatus => PlayerClass.PlayerStatusText;
         public bool CanPlayCard(int index) => CanPlay(index);
         public void RequestPlayCard(int index) { if (ready) PlayCard(index); }
         public void SetAngle(float value)

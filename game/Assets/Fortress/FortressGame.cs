@@ -34,7 +34,6 @@ namespace MiniFortress
             public SpriteRenderer body;
             public string name;
             public float angle = 48, power = 26;
-            public int bleed, weakened;
         }
         struct Platform
         {
@@ -59,6 +58,10 @@ namespace MiniFortress
         float lastPowerFraction = -1;
         int current, round, playerFacing = 1;
         string message;
+        // Notes the player's class adds to the hit message of the shot being resolved (bleed bursts ...).
+        string hitNote = "";
+        // What the player's current projectile carries, from the class module at launch.
+        FortressShotMods mainShotMods;
         Vector3 cameraHome;
         float cameraSize;
         bool ready;
@@ -307,7 +310,7 @@ namespace MiniFortress
             current = index; shotPosition = Origin(index, angle);
             shotVelocity = Direction(index, angle) * fighters[index].power;
             RollCritical(index);
-            mainShotMods = index == 0 ? NextArrowMods() : null;
+            mainShotMods = index == 0 ? PlayerClass.NextShotMods() : null;
             if (index == 0 && volleyRemaining > 0) QueueVolley();
             shotAge = accumulator = 0; arrow.position = shotPosition;
             arrow.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(shotVelocity.y, shotVelocity.x) * Mathf.Rad2Deg);
@@ -326,16 +329,16 @@ namespace MiniFortress
             message = total > 0 ? (shotCritical && current == 0 ? "치명타! " : "") + "명중! 피해 " + total : "빗나갔습니다. 각도와 위력을 조절하세요.";
             if (blocked > 0) message += " · 방어도로 " + blocked + " 막음";
             message += hitNote;
-            if (current == 0 && total == 0) PlayerArrowMissed(shotPosition, shotVelocity, !miss);
+            if (current == 0 && total == 0) PlayerClass.OnMiss(shotPosition, shotVelocity, !miss);
             phase = Phase.Impact; timer = 0.55f;
         }
         // Direct hit takes full damage, others fall off with distance. Enemy shots only hurt the player.
-        // Player arrows then apply their on-hit effects (bleed ...) to the enemy that took the most damage.
-        int ApplyBlast(int owner, Vector2 at, int directHit, bool critical, ref int blocked, ShotMods mods = null)
+        // The player's class then applies its on-hit effects (bleed ...) to the enemy that took the most damage.
+        int ApplyBlast(int owner, Vector2 at, int directHit, bool critical, ref int blocked, FortressShotMods mods = null)
         {
             int total = 0, target = -1, best = 0;
             int baseDamage = ShotDamage(owner, critical) + (mods?.extraDamage ?? 0);
-            if (owner > 0) { baseDamage = Mathf.Max(0, baseDamage - fighters[owner].weakened); fighters[owner].weakened = 0; }
+            if (owner > 0) baseDamage = PlayerClass.AdjustEnemyShotDamage(owner, baseDamage);
             float radius = fighters[owner].definition.blastRadius;
             for (int i = 0; i < fighters.Count; i++)
             {
@@ -343,14 +346,14 @@ namespace MiniFortress
                 Fighter f = fighters[i];
                 Vector2 nearest = new Vector2(f.feet.x, Mathf.Clamp(at.y, f.feet.y + 0.2f, f.feet.y + 2.9f * f.root.localScale.x));
                 float distance = Vector2.Distance(at, nearest);
-                int maximum = baseDamage + (owner == 0 ? TargetBonus(i, mods) : 0);
+                int maximum = baseDamage + (owner == 0 ? PlayerClass.TargetBonus(i, mods) : 0);
                 int damage = directHit == i ? maximum : Mathf.RoundToInt(maximum * Mathf.Clamp01(1 - distance / radius));
                 if (i == 0 && damage > 0) { int taken = AbsorbWithBlock(damage); blocked += damage - taken; damage = taken; }
                 f.hp = Mathf.Max(0, f.hp - damage); total += damage;
                 if (damage > 0) PlayDamageReaction(f);
                 if (i > 0 && damage > best) { best = damage; target = i; }
             }
-            if (owner == 0 && target > 0) OnPlayerHit(target, mods);
+            if (owner == 0 && target > 0) PlayerClass.OnHit(target, mods);
             return total;
         }
         void Finish(bool won)
